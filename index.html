@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DamStab — Gravity Dam Stability Screening Tool</title>
+    <style>
+        :root {
+            --primary: #1e3a8a;
+            --primary-hover: #1d4ed8;
+            --accent: #0d9488;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #0f172a;
+            --text-muted: #64748b;
+            --border: #cbd5e1;
+            --success: #16a34a;
+            --danger: #dc2626;
+            --warning: #eab308;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background-color: var(--bg); color: var(--text); line-height: 1.4; padding: 15px; }
+        
+        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border); padding-bottom: 10px; margin-bottom: 15px; }
+        h1 { color: var(--primary); font-size: 1.6rem; }
+        .disclaimer { font-size: 0.75rem; color: var(--danger); font-style: italic; text-align: right; max-width: 400px; }
+
+        /* Navigation Tabs */
+        .tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 15px; gap: 5px; overflow-x: auto; }
+        .tab-btn { background: #e2e8f0; border: 1px solid var(--border); border-bottom: none; padding: 8px 16px; cursor: pointer; font-weight: 600; font-size: 0.9rem; border-radius: 6px 6px 0 0; color: var(--text-muted); transition: all 0.2s; white-space: nowrap; }
+        .tab-btn:hover { background: #cbd5e1; color: var(--text); }
+        .tab-btn.active { background: var(--card-bg); color: var(--primary); border-bottom: 2px solid var(--card-bg); margin-bottom: -1px; position: relative; z-index: 2; }
+        .tab-content { display: none; background: var(--card-bg); border: 1px solid var(--border); border-radius: 0 0 6px 6px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .tab-content.active { display: block; }
+
+        /* Grid Layouts */
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+        .grid-mix { display: grid; grid-template-columns: 3fr 2fr; gap: 20px; }
+        @media (max-width: 900px) { .grid-2, .grid-3, .grid-mix { grid-template-columns: 1fr; } }
+
+        /* Forms & Inputs */
+        .form-group { margin-bottom: 12px; }
+        label { display: block; font-size: 0.85rem; font-weight: 600; color: #475569; margin-bottom: 4px; }
+        input[type="number"], input[type="text"], input[type="password"], select { width: 100%; padding: 6px 10px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.9rem; }
+        input:disabled, select:disabled { background: #f1f5f9; color: #94a3b8; }
+        .checkbox-group { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
+        .checkbox-group label { margin-bottom: 0; cursor: pointer; }
+
+        /* Buttons */
+        .btn { background: var(--primary); color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.85rem; transition: background 0.2s; }
+        .btn:hover { background: var(--primary-hover); }
+        .btn:disabled { background: #cbd5e1; cursor: not-allowed; }
+        .btn-accent { background: var(--accent); }
+        .btn-accent:hover { background: #0f766e; }
+        .btn-danger { background: var(--danger); }
+
+        /* Canvas container and setups */
+        .canvas-container { position: relative; background: #f1f5f9; border: 1px solid var(--border); border-radius: 6px; overflow: auto; min-height: 400px; display: flex; justify-content: center; align-items: center; }
+        canvas { display: block; background: transparent; }
+        .canvas-overlay-ui { position: absolute; top: 10px; left: 10px; background: rgba(255,255,255,0.9); padding: 8px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-size: 0.8rem; pointer-events: none; }
+
+        /* UI Cards & Badges */
+        .card-inner { border: 1px solid var(--border); padding: 15px; border-radius: 6px; margin-bottom: 15px; background: #fafafa; }
+        .card-inner h4 { margin-bottom: 10px; color: var(--primary); font-size: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+        .badge { display: inline-block; padding: 2px 6px; font-size: 0.75rem; font-weight: bold; border-radius: 4px; background: #e2e8f0; margin-left: 5px; }
+        .badge-success { background: #dcfce7; color: #166534; }
+        .badge-error { background: #fee2e2; color: #991b1b; }
+
+        /* Tables */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; }
+        th, td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }
+        th { background: #f1f5f9; font-weight: 600; color: #334155; }
+        tr:nth-child(even) { background: #f8fafc; }
+        .text-right { text-align: right; }
+        
+        /* Metric Blocks */
+        .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .metric-card { background: #f1f5f9; padding: 15px; border-radius: 6px; border-left: 5px solid #cbd5e1; text-align: center; }
+        .metric-card.pass { border-left-color: var(--success); background: #f0fdf4; }
+        .metric-card.fail { border-left-color: var(--danger); background: #fef2f2; }
+        .metric-card .label { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; }
+        .metric-card .val { font-size: 1.6rem; font-weight: 800; margin: 5px 0; }
+        .metric-card .status { font-size: 0.75rem; font-weight: bold; }
+
+        /* Sub-case selectors */
+        .case-selector { display: flex; gap: 5px; margin-bottom: 15px; background: #f1f5f9; padding: 5px; border-radius: 6px; }
+        .case-btn { flex: 1; padding: 6px; font-size: 0.85rem; border: none; background: transparent; cursor: pointer; font-weight: 600; border-radius: 4px; color: var(--text-muted); }
+        .case-btn.active { background: white; color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+        #dropZone { border: 2px dashed #94a3b8; padding: 30px; text-align: center; border-radius: 6px; background: #f8fafc; cursor: pointer; margin-bottom: 15px; }
+        #dropZone:hover { background: #f1f5f9; border-color: var(--primary); }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div>
+            <h1>DamStab</h1>
+            <p style="font-size:0.85rem; color:var(--text-muted)">Gravity Dam Geometry-Mapping & Stability Screening System</p>
+        </div>
+        <div class="disclaimer">Preliminary screening tool. A licensed professional engineer must verify all final results.</div>
+    </header>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab(event, 'tab-image')">Image Upload & Mapping</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tab-input')">Input Parameters</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tab-forces')">Calculated Forces</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tab-results')">Stability Results</button>
+        <button class="tab-btn" onclick="switchTab(event, 'tab-settings')">AI Vision Settings</button>
+    </div>
+
+    <div id="tab-image" class="tab-content active">
+        <div class="grid-mix">
+            <div>
+                <div id="dropZone" onclick="document.getElementById('fileInput').click()">
+                    <p style="font-weight: 600;">Drag & Drop Section Cross-Section Screenshot here, or click to browse</p>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 5px;">Supports PNG, JPG, JPEG</p>
+                    <input type="file" id="fileInput" style="display:none" accept="image/*" onchange="handleFileSelect(event)">
+                </div>
+
+                <div class="canvas-container" id="mappingContainer">
+                    <div class="canvas-overlay-ui" id="canvasUI">
+                        <strong>Interactive Geometry Mapper:</strong><br>
+                        • Drag the 4 colored nodal corner handles to fit your cross section.<br>
+                        • Adjust inputs to change actual target base and crest width dimensions.
+                    </div>
+                    <canvas id="mappingCanvas"></canvas>
+                </div>
+            </div>
+
+            <div>
+                <div class="card-inner">
+                    <h4>Anthropic Vision Parser</h4>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">
+                        Pass your uploaded cross-section asset directly to Claude to extract dimension attributes automatically via optical structural layout inference.
+                    </p>
+                    <button class="btn btn-accent" id="btnVision" onclick="runAIVision()" disabled>Read Section with AI Vision</button>
+                    <div id="visionStatus" style="margin-top:10px; font-size:0.85rem; font-weight:600;"></div>
+                </div>
+
+                <div class="card-inner" id="aiExtractedCard" style="display:none;">
+                    <h4>Extracted Inferred Properties</h4>
+                    <div id="aiBadges" style="font-size:0.85rem; line-height: 1.6;"></div>
+                    <button class="btn" style="margin-top:12px; width:100%;" onclick="applyAIExtractions()">Apply to Input Fields</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-input" class="tab-content">
+        <div class="grid-3" style="margin-bottom:15px;">
+            <div class="form-group">
+                <label>Design Analytical Standard</label>
+                <select id="designCode" onchange="updateAll()">
+                    <option value="FERC">FERC Chapter 3</option>
+                    <option value="USACE">USACE EM 1110-2-2100</option>
+                    <option value="USBR">USBR Guidelines</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="grid-3">
+            <div class="card-inner">
+                <h4>Dam Structural Profile</h4>
+                <div class="form-group">
+                    <label>Total Dam Height ($H$, ft)</label>
+                    <input type="number" id="inpH" value="60" oninput="updateAll()">
+                </div>
+                <div class="form-group">
+                    <label>Base Structural Width ($B$, ft)</label>
+                    <input type="number" id="inpB" value="45" oninput="updateAll()">
+                </div>
+                <div class="form-group">
+                    <label>Top Crest Width ($a$, ft)</label>
+                    <input type="number" id="inpA" value="6" oninput="updateAll()">
+                </div>
+                <div class="form-group">
+                    <label>Concrete Unit Weight ($\gamma_c$, pcf)</label>
+                    <input type="number" id="inpGammaC" value="150" oninput="updateAll()">
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="chkWeightOverride" onchange="toggleWeightOverride()">
+                    <label {{comment}} for="chkWeightOverride">Override calculated weight</label>
+                </div>
+                <div class="form-group" style="margin-top:5px;">
+                    <label>User Weight Override (kips/ft)</label>
+                    <input type="number" id="inpWeightOverride" value="229.5" disabled oninput="updateAll()">
+                </div>
+            </div>
+
+            <div class="card-inner">
+                <h4>Foundation Interaction</h4>
+                <div class="form-group">
+                    <label>Internal Friction Angle ($\phi$, degrees)</label>
+                    <input type="number" id="inpPhi" value="40" oninput="updateAll()">
+                </div>
+                <div class="checkbox-group" style="margin-bottom: 8px;">
+                    <input type="checkbox" id="chkIncludeCohesion" checked onchange="updateAll()">
+                    <label {{comment}} for="chkIncludeCohesion">Include Structural Cohesion</label>
+                </div>
+                <div class="form-group">
+                    <label>Cohesion Force ($c$, ksf)</label>
+                    <input type="number" id="inpCohesion" value="5.0" oninput="updateAll()">
+                </div>
+                <div class="form-group">
+                    <label>Water Volumetric Unit Wt ($\gamma_w$, pcf)</label>
+                    <input type="number" id="inpGammaW" value="62.4" oninput="updateAll()">
+                </div>
+                <div class="checkbox-group" style="margin-top: 15px;">
+                    <input type="checkbox" id="chkDrainPresent" checked onchange="toggleDrainInputs()">
+                    <label {{comment}} for="chkDrainPresent">Internal Pressure Relief Drain Present</label>
+                </div>
+                <div class="form-group" style="margin-top:5px;">
+                    <label>Drain Line distance from Heel (ft)</label>
+                    <input type="number" id="inpDrainDist" value="10" oninput="updateAll()">
+                </div>
+                <div class="form-group">
+                    <label>Drain Efficiency ($E$ [0 - 1])</label>
+                    <input type="number" id="inpDrainEff" value="0.5" step="0.1" max="1" min="0" oninput="updateAll()">
+                </div>
+            </div>
+
+            <div class="card-inner">
+                <h4>Load Case Parameter Controls</h4>
+                <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:8px;">Elevations referenced relative to the baseline foundation elevation datum ($0.0\text{ ft}$).</p>
+                
+                <h5 style="font-size:0.8rem; margin-top:5px; color:var(--primary)">Case 1: Usual (Normal Operating)</h5>
+                <div class="grid-2">
+                    <div class="form-group"><label>HW (ft)</label><input type="number" id="case1_hw" value="58" oninput="updateAll()"></div>
+                    <div class="form-group"><label>TW (ft)</label><input type="number" id="case1_tw" value="5" oninput="updateAll()"></div>
+                </div>
+                
+                <h5 style="font-size:0.8rem; margin-top:5px; color:var(--primary)">Case 2: Unusual (Design Flood)</h5>
+                <div class="grid-2">
+                    <div class="form-group"><label>HW (ft)</label><input type="number" id="case2_hw" value="60" oninput="updateAll()"></div>
+                    <div class="form-group"><label>TW (ft)</label><input type="number" id="case2_tw" value="12" oninput="updateAll()"></div>
+                </div>
+
+                <h5 style="font-size:0.8rem; margin-top:5px; color:var(--primary)">Case 3: Extreme (Seismic Safety)</h5>
+                <div class="grid-3">
+                    <div class="form-group" style="grid-column: span 1;"><label>HW (ft)</label><input type="number" id="case3_hw" value="58" oninput="updateAll()"></div>
+                    <div class="form-group" style="grid-column: span 1;"><label>TW (ft)</label><input type="number" id="case3_tw" value="5" oninput="updateAll()"></div>
+                    <div class="form-group" style="grid-column: span 1;"><label>Acc. $k_h$</label><input type="number" id="case3_kh" value="0.10" step="0.01" oninput="updateAll()"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-forces" class="tab-content">
+        <div class="case-selector" id="caseSelectorForces">
+            <button class="case-btn active" onclick="switchLoadCase(1)">Usual Case</button>
+            <button class="case-btn" onclick="switchLoadCase(2)">Unusual Case</button>
+            <button class="case-btn" onclick="switchLoadCase(3)">Extreme Case</button>
+        </div>
+
+        <div class="grid-mix">
+            <div style="background:#f1f5f9; border:1px solid var(--border); border-radius:6px; display:flex; justify-content:center; align-items:center; padding:10px;">
+                <canvas id="forcesCanvas" width="550" height="400"></canvas>
+            </div>
+            <div>
+                <h4>Force Variable Component Matrix</h4>
+                <table id="forcesTable">
+                    <thead>
+                        <tr>
+                            <th>Force Description</th>
+                            <th>$F_x$ (k)</th>
+                            <th>$F_y$ (k)</th>
+                            <th>Arm $x$ (ft)</th>
+                            <th>Arm $y$ (ft)</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody id="forcesTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-results" class="tab-content">
+        <div class="case-selector" id="caseSelectorResults">
+            <button class="case-btn active" onclick="switchLoadCase(1)">Usual Case</button>
+            <button class="case-btn" onclick="switchLoadCase(2)">Unusual Case</button>
+            <button class="case-btn" onclick="switchLoadCase(3)">Extreme Case</button>
+        </div>
+
+        <div class="metric-grid">
+            <div class="metric-card" id="cardSliding">
+                <div class="label">Sliding Factor of Safety</div>
+                <div class="val" id="resSlidingFS">0.00</div>
+                <div class="status" id="lblSlidingStatus">FAIL</div>
+            </div>
+            <div class="metric-card" id="cardResultant">
+                <div class="label">Resultant Location (From Heel)</div>
+                <div class="val" id="resResultant">0.0 ft</div>
+                <div class="status" id="lblResultantStatus">OUTSIDE MIDDLE THIRD</div>
+            </div>
+            <div class="metric-card" id="cardEccentricity">
+                <div class="label">Eccentricity ($e$)</div>
+                <div class="val" id="resEccentricity">0.0 ft</div>
+                <div class="status" id="lblEccStatus">LIMIT: 0.00</div>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="card-inner">
+                <h4>Bearing Base Pressure Distribution</h4>
+                <table>
+                    <tr><th>Heel Pressure ($p_{heel}$)</th><td id="resHeelPress" class="val">0.00 ksf</td></tr>
+                    <tr><th>Toe Pressure ($p_{toe}$)</th><td id="resToePress" class="val">0.00 ksf</td></tr>
+                    <tr><th>Base Structural Condition State</th><td id="resTensionWarning" style="font-weight:700;">OK</td></tr>
+                </table>
+
+                <div style="margin-top:15px; padding:12px; background:#fffbeb; border-left:4px solid var(--warning); border-radius:4px;">
+                    <strong>Cracked-Base Static Convergence Model:</strong>
+                    <div class="checkbox-group" style="margin: 8px 0;">
+                        <input type="checkbox" id="chkEnableCracking" onchange="updateAll()">
+                        <label {{comment}} for="chkEnableCracking">Enable Base Cracking Analysis Iteration</label>
+                    </div>
+                    <div class="grid-2" style="margin-top:5px;">
+                        <div>
+                            <label>Active Crack Length (ft)</label>
+                            <input type="number" id="inpActiveCrack" value="0" step="0.5" oninput="updateAll()">
+                        </div>
+                        <div>
+                            <label>Calculated Target Crack (ft)</label>
+                            <div id="calcSuggestedCrack" style="font-weight:700; padding:6px 0; font-size:1.1rem;">0.00</div>
+                        </div>
+                    </div>
+                    <div style="margin-top:10px; display:flex; gap:10px; align-items:center;">
+                        <button class="btn btn-accent" style="padding:6px 12px; font-size:0.8rem;" onclick="iterateCrack()">Use Suggested & Iterate</button>
+                        <span id="crackConvergenceIndicator" style="font-size:0.8rem; font-weight:bold;"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-inner">
+                <h4>Calculation Equations & Outputs Summary</h4>
+                <div style="font-size:0.85rem; background:#f1f5f9; padding:10px; border-radius:4px; margin-bottom:10px; font-family:monospace;">
+                    <strong>Sliding FS Structural Formula:</strong><br>
+                    $FS_{sliding} = \frac{N \cdot \tan(\phi) + c \cdot L_{uncracked}}{\Sigma H}$
+                </div>
+                <div id="calcFormulaBreakdown" style="font-size:0.85rem; line-height:1.6; margin-bottom:15px;"></div>
+                
+                <div id="overturningRatioBox" style="display:none; background:#f1f5f9; padding:10px; border-radius:4px; font-family:monospace;">
+                    <strong>Overturning Moment Ratio ($M_r / M_o$):</strong> <span id="txtOverturningRatio" style="font-weight:700;">0.00</span>
+                </div>
+
+                <button class="btn" style="width:100%; margin-top:15px;" onclick="exportResultsCSV()">Export Multi-Case Structural Report (CSV)</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-settings" class="tab-content">
+        <div class="card-inner" style="max-width: 600px;">
+            <h4>Claude API Routing Configuration</h4>
+            <div class="form-group">
+                <label>Anthropic User Key String</label>
+                <input type="password" id="cfgApiKey" placeholder="sk-ant-...">
+            </div>
+            <div class="form-group">
+                <label>Vision Processing Engine Model Target</label>
+                <select id="cfgModel">
+                    <option value="claude-3-5-sonnet-20241022">claude-3-5-sonnet-20241022 (Default)</option>
+                    <option value="claude-3-opus-20240229">claude-3-opus-20240229</option>
+                    <option value="claude-3-5-haiku-20241022">claude-3-5-haiku-20241022</option>
+                </select>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:15px;">
+                <button class="btn" onclick="saveSettings()">Save Key Settings</button>
+                <button class="btn btn-danger" onclick="clearSettings()">Clear Key Settings</button>
+            </div>
+            <p style="font-size:0.75rem; color:var(--text-muted); margin-top:15px;">
+                <strong>Privacy Protocol Verification Note:</strong> API credential tokens are cached natively directly within session scope runtime state memory. Network requests communicate directly point-to-point to <code>api.anthropic.com</code> from your client browser thread ecosystem.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // --- Core Application Memory State ---
+        let currentLoadCase = 1; 
+        let baseImg = null;
+        
+        // Interactive handle state variables for polygon geometric alignment overlay
+        let nodes = [
+            { x: 50,  y: 350, label: "Heel (Upstream Base)" },
+            { x: 100, y: 50,  label: "Crest Face Start" },
+            { x: 150, y: 50,  label: "Crest Face End" },
+            { x: 350, y: 350, label: "Toe (Downstream Base)" }
+        ];
+        let draggedNodeIndex = -1;
+
+        let aiInferredData = null;
+
+        // Launch Setup Hook
+        window.onload = function() {
+            loadSettings();
+            initMappingCanvas();
+            updateAll();
+        };
+
+        // --- Navigation Controller ---
+        function switchTab(evt, tabId) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            evt.currentTarget.classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+            if(tabId === 'tab-forces' || tabId === 'tab-image') {
+                setTimeout(renderCanvases, 50);
+            }
+        }
+
+        function switchLoadCase(caseIdx) {
+            currentLoadCase = caseIdx;
+            document.querySelectorAll('#caseSelectorForces .case-btn, #caseSelectorResults .case-btn').forEach((btn, i) => {
+                if((i % 3) === (caseIdx - 1)) btn.classList.add('active');
+                else btn.classList.remove('active');
+            });
+            updateAll();
+        }
+
+        // --- Settings Storage Engine ---
+        function saveSettings() {
+            const key = document.getElementById('cfgApiKey').value.trim();
+            if(key) {
+                sessionStorage.setItem('damstab_ant_key', key);
+                document.getElementById('btnVision').disabled = false;
+                alert("API credentials mapped successfully.");
+            }
+        }
+        function loadSettings() {
+            const cached = sessionStorage.getItem('damstab_ant_key');
+            if(cached) {
+                document.getElementById('cfgApiKey').value = cached;
+                document.getElementById('btnVision').disabled = false;
+            }
+        }
+        function clearSettings() {
+            sessionStorage.removeItem('damstab_ant_key');
+            document.getElementById('cfgApiKey').value = "";
+            document.getElementById('btnVision').disabled = true;
+            alert("Credentials wiped cleanly.");
+        }
+
+        // --- Input Helper Management Tools ---
+        function toggleWeightOverride() {
+            const active = document.getElementById('chkWeightOverride').checked;
+            document.getElementById('inpWeightOverride').disabled = !active;
+            updateAll();
+        }
+        function toggleDrainInputs() {
+            const active = document.getElementById('chkDrainPresent').checked;
+            document.getElementById('inpDrainDist').disabled = !active;
+            document.getElementById('inpDrainEff').disabled = !active;
+            updateAll();
+        }
+
+        // --- Canvas UI Mapping System Logic ---
+        function initMappingCanvas() {
+            const cvs = document.getElementById('mappingCanvas');
+            cvs.width = 600; cvs.height = 400;
+
+            cvs.addEventListener('mousedown', function(e) {
+                const rect = cvs.getBoundingClientRect();
+                const mx = e.clientX - rect.left;
+                const my = e.clientY - rect.top;
+                
+                draggedNodeIndex = nodes.findIndex(n => Math.hypot(n.x - mx, n.y - my) < 10);
+            });
+
+            cvs.addEventListener('mousemove', function(e) {
+                if (draggedNodeIndex === -1) return;
+                const rect = cvs.getBoundingClientRect();
+                nodes[draggedNodeIndex].x = e.clientX - rect.left;
+                nodes[draggedNodeIndex].y = e.clientY - rect.top;
+                
+                // Real-time recalculation constraints
+                syncDimensionsFromNodes();
+                renderCanvases();
+            });
+
+            window.addEventListener('mouseup', () => { draggedNodeIndex = -1; });
+        }
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                baseImg = new Image();
+                baseImg.onload = function() {
+                    const cvs = document.getElementById('mappingCanvas');
+                    cvs.width = baseImg.width > 800 ? 800 : (baseImg.width < 500 ? 500 : baseImg.width);
+                    cvs.height = (baseImg.height / baseImg.width) * cvs.width;
+                    
+                    // Reposition node anchors proportionally across spatial scope
+                    nodes[0] = { x: cvs.width * 0.25, y: cvs.height * 0.85, label: "Heel" };
+                    nodes[1] = { x: cvs.width * 0.35, y: cvs.height * 0.20, label: "Crest Start" };
+                    nodes[2] = { x: cvs.width * 0.45, y: cvs.height * 0.20, label: "Crest End" };
+                    nodes[3] = { x: cvs.width * 0.70, y: cvs.height * 0.85, label: "Toe" };
+                    
+                    syncDimensionsFromNodes();
+                    renderCanvases();
+                };
+                baseImg.src = evt.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function syncDimensionsFromNodes() {
+            // Automatically derive physical scale proportions assuming User Target Parameters match bounding height
+            const currentB = parseFloat(document.getElementById('inpB').value) || 45;
+            const currentH = parseFloat(document.getElementById('inpH').value) || 60;
+            
+            // Recompute cross slope ratios from active polygon node parameters
+            let pxBase = Math.abs(nodes[3].x - nodes[0].x) || 1;
+            let pxHeight = Math.abs(nodes[0].y - nodes[1].y) || 1;
+            
+            let pxCrest = Math.abs(nodes[2].x - nodes[1].x);
+            let computedA = (pxCrest / pxBase) * currentB;
+            
+            document.getElementById('inpA').value = computedA.toFixed(1);
+            updateAll();
+        }
+
+        // --- Core Application Analytical Engine ---
+        function updateAll() {
+            const calcData = runAnalysisForCase(currentLoadCase);
+            renderCanvases();
+            updateUIFields(calcData);
+        }
+
+        function runAnalysisForCase(caseNumber) {
+            // Extract baseline global metrics
+            const H = parseFloat(document.getElementById('inpH').value) || 60;
+            const B = parseFloat(document.getElementById('inpB').value) || 45;
+            const a = parseFloat(document.getElementById('inpA').value) || 6;
+            const gammaC = parseFloat(document.getElementById('inpGammaC').value) || 150;
+            const gammaW = parseFloat(document.getElementById('inpGammaW').value) || 62.4;
+            
+            const phi = parseFloat(document.getElementById('inpPhi').value) || 40;
+            const useCohesion = document.getElementById('chkIncludeCohesion').checked;
+            const cohesionKsf = useCohesion ? (parseFloat(document.getElementById('inpCohesion').value) || 0) : 0;
+            
+            const drainPresent = document.getElementById('chkDrainPresent').checked;
+            const drainDist = drainPresent ? (parseFloat(document.getElementById('inpDrainDist').value) || 0) : 0;
+            const drainEff = drainPresent ? (parseFloat(document.getElementById('inpDrainEff').value) || 0) : 0;
+            
+            const code = document.getElementById('designCode').value;
+            const crackingEnabled = document.getElementById('chkEnableCracking').checked;
+            const activeCrack = crackingEnabled ? (parseFloat(document.getElementById('inpActiveCrack').value) || 0) : 0;
+
+            // Load case parameters selection mapping
+            let hw = 0, tw = 0, kh = 0;
+            if(caseNumber === 1) {
+                hw = parseFloat(document.getElementById('case1_hw').value) || 0;
+                tw = parseFloat(document.getElementById('case1_tw').value) || 0;
+            } else if(caseNumber === 2) {
+                hw = parseFloat(document.getElementById('case2_hw').value) || 0;
+                tw = parseFloat(document.getElementById('case2_tw').value) || 0;
+            } else {
+                hw = parseFloat(document.getElementById('case3_hw').value) || 0;
+                tw = parseFloat(document.getElementById('case3_tw').value) || 0;
+                kh = parseFloat(document.getElementById('case3_kh').value) || 0;
+            }
+
+            // Geometric Polygon Area Calculation via Standard Coordinate Mapping Space
+            // Coordinates relative to structural heel located at local origin (0, H) matching canvas orientation models
+            let shapeVertices = [
+                {x: 0, y: 0},     // Heel Base
+                {x: 0, y: H},     // Vertical Upstream Face Up to Crest
+                {x: a, y: H},     // Along Crest Width
+                {x: B, y: 0}      // Downstream sloping face block termination at toe
+            ];
+
+            // Shoelace Algorithm implementation for programmatic Area & Mass Centroid derivation
+            let area = 0, cx = 0, cy = 0;
+            let numPt = shapeVertices.length;
+            for (let i = 0; i < numPt; i++) {
+                let j = (i + 1) % numPt;
+                let factor = (shapeVertices[i].x * shapeVertices[j].y - shapeVertices[j].x * shapeVertices[i].y);
+                area += factor;
+                cx += (shapeVertices[i].x + shapeVertices[j].x) * factor;
+                cy += (shapeVertices[i].y + shapeVertices[j].y) * factor;
+            }
+            area = Math.abs(area / 2);
+            cx = Math.abs(cx / (6 * area));
+            cy = Math.abs(cy / (6 * area));
+
+            // Mass Weight configuration assignment
+            let W_calc = area * (gammaC / 1000); // kips per linear structural foot
+            let W = document.getElementById('chkWeightOverride').checked ? 
+                        (parseFloat(document.getElementById('inpWeightOverride').value) || W_calc) : W_calc;
+
+            // Individual Force Vector Matrix Mapping Definitions
+            let forcesList = [];
+
+            // 1. Structural Self Weight (Gravity Target Direction Downward)
+            forcesList.push({ name: "Self Weight (W)", fx: 0, fy: -W, x: cx, y: cy, note: "Computed section centroid" });
+
+            // 2. Headwater Lateral Hydrostatic Pressure Vector
+            if(hw > 0) {
+                let P_hw = 0.5 * (gammaW / 1000) * Math.pow(hw, 2);
+                forcesList.push({ name: "Headwater Hydrostatic", fx: P_hw, fy: 0, x: 0, y: hw / 3, note: "Active Driving Vector" });
+            }
+
+            // 3. Tailwater Lateral Hydrostatic Pressure Vector
+            if(tw > 0) {
+                let P_tw = 0.5 * (gammaW / 1000) * Math.pow(tw, 2);
+                forcesList.push({ name: "Tailwater Hydrostatic", fx: -P_tw, fy: 0, x: B, y: tw / 3, note: "Stabilizing Resistant Vector" });
+            }
+
+            // 4. Uplift Pressure Model Profile (Incorporating internal foundation relative drainage limits)
+            let p_heel = hw * (gammaW / 1000);
+            let p_toe = tw * (gammaW / 1000);
+            let totalUpliftForce = 0;
+            let upliftMomentAboutToe = 0;
+
+            // Integration evaluation tracking matrix array blocks across the baseline width space slice boundaries
+            // We slice the profile along three evaluation nodes: Heel (0), Drain line location (drainDist), and Toe (B)
+            let segments = [];
+            let u_crack = p_heel;
+
+            if (crackingEnabled && activeCrack > 0) {
+                // If crack exists, full headwater pressure penetrates down along crack path segment
+                segments.push({ x0: 0, x1: activeCrack, y0: u_crack, y1: u_crack });
+                
+                // Reset effective boundary condition markers relative to internal remaining profile
+                let effectiveHeelX = activeCrack;
+                let base_undrained = p_toe + ((B - effectiveHeelX) / B) * (p_heel - p_toe);
+                let p_drain_eff = p_toe + (1 - drainEff) * (base_undrained - p_toe);
+
+                if (drainPresent && drainDist > effectiveHeelX && drainDist < B) {
+                    segments.push({ x0: effectiveHeelX, x1: drainDist, y0: u_crack, y1: p_drain_eff });
+                    segments.push({ x0: drainDist, x1: B, y0: p_drain_eff, y1: p_toe });
+                } else {
+                    segments.push({ x0: effectiveHeelX, x1: B, y0: u_crack, y1: p_toe });
+                }
+            } else {
+                // Uncracked classic baseline loading metrics conditions
+                let base_undrained = p_toe + ((B - drainDist) / B) * (p_heel - p_toe);
+                let p_drain_eff = p_toe + (1 - drainEff) * (base_undrained - p_toe);
+
+                if (drainPresent && drainDist > 0 && drainDist < B) {
+                    segments.push({ x0: 0, x1: drainDist, y0: p_heel, y1: p_drain_eff });
+                    segments.push({ x0: drainDist, x1: B, y0: p_drain_eff, y1: p_toe });
+                } else {
+                    segments.push({ x0: 0, x1: B, y0: p_heel, y1: p_toe });
+                }
+            }
+
+            // Aggregate internal structural segments calculations data layers
+            segments.forEach(seg => {
+                let W_seg = (seg.x1 - seg.x0);
+                let F_seg = 0.5 * (seg.y0 + seg.y1) * W_seg; // Area of pressure block trapezoid
+                let centroid_local = (W_seg / 3) * ((seg.y0 + 2 * seg.y1) / (seg.y0 + seg.y1));
+                let x_global = seg.x0 + centroid_local;
+                
+                totalUpliftForce += F_seg;
+                // Accumulate moment calculations relative to downstream point toe boundary
+                upliftMomentAboutToe += F_seg * (B - x_global);
+            });
+
+            forcesList.push({
+                name: "Foundation Uplift Force",
+                fx: 0,
+                fy: totalUpliftForce, // Pointing up (handled appropriately as negative relative structural action)
+                x: B - (upliftMomentAboutToe / (totalUpliftForce || 1)),
+                y: 0,
+                note: crackingEnabled ? "Cracked-base adjustment path" : "Drain relief mapped"
+            });
+
+            // 5. Dynamic Inertial Horizontal Seismic Load Multiplier
+            if (kh > 0) {
+                let F_eq = kh * W;
+                forcesList.push({ name: "Inertial Seismic ($F_{eq}$)", fx: F_eq, fy: 0, x: cx, y: cy, note: "Horizontal load at centroid" });
+            }
+
+            // --- Structural Moment Mechanics Calculations Suite ---
+            let SumFx = 0;
+            let SumFy = 0; // Absolute programmatic summation framework tracking
+            let ResistingMoment = 0;
+            let DrivingMoment = 0;
+
+            forcesList.forEach(f => {
+                SumFx += f.fx;
+                // Net internal axial loading definitions: Downward is positive for stability capacity calculations blocks
+                if(f.name.includes("Uplift")) {
+                    SumFy -= f.fy; // Uplift counters gravity
+                } else {
+                    SumFy += f.fy; 
+                }
+
+                // Compute moment contributions evaluated relative to Downstream Toe Pivot point
+                let armX_fromToe = B - f.x;
+                let armY_fromToe = f.y;
+
+                // Vertical forces
+                if (f.fy !== 0) {
+                    if (f.name.includes("Uplift")) {
+                        // Uplift creates overturning (driving) moment about toe
+                        DrivingMoment += f.fy * armX_fromToe;
+                    } else {
+                        // Downward mass creates stabilizer (resisting) moment about toe
+                        ResistingMoment += Math.abs(f.fy) * armX_fromToe;
+                    }
+                }
+                // Horizontal forces
+                if (f.fx !== 0) {
+                    if (f.fx > 0) {
+                        // Pushing downstream causes overturning about toe
+                        DrivingMoment += f.fx * armY_fromToe;
+                    } else {
+                        // Pushing upstream provides resistance support
+                        ResistingMoment += Math.abs(f.fx) * armY_fromToe;
+                    }
+                }
+            });
+
+            let NetMomentAboutToe = ResistingMoment - DrivingMoment;
+            let N = SumFy; // Net Normal effective compressive load force acting on joint foundation
+            let SumH_driving = forcesList.filter(f => f.fx > 0).reduce((a, b) => a + b.fx, 0) - forcesList.filter(f => f.fx < 0).reduce((a, b) => a + b.fx, 0);
+
+            // Base Structural Length parameters mapping configuration
+            let L_effective = B;
+            let L_uncracked = crackingEnabled ? (B - activeCrack) : B;
+
+            // Compute sliding capacity check rules definitions
+            let tanPhi = Math.tan(phi * Math.PI / 180);
+            let slidingFS = (N * tanPhi + cohesionKsf * L_uncracked) / (SumH_driving || 1);
+
+            // Eccentricity & Base Contact Matrix properties calculation profiling models
+            let resultantFromHeel = 0;
+            if (N > 0) {
+                resultantFromHeel = (NetMomentAboutToe) / N;
+            }
+            let eccentricity = resultantFromHeel - (B / 2);
+            let middleThirdLimit = B / 6;
+
+            // Evaluation of pressure profiles under alternate geometric load distribution schemes
+            let p_base_heel = 0;
+            let p_base_toe = 0;
+            let tensionStateWarning = "COMPRESSION UNIFORM";
+
+            if (Math.abs(eccentricity) <= middleThirdLimit) {
+                // Classic uncracked trapezoidal loading linear distribution rules
+                p_base_heel = (N / B) * (1 - (6 * eccentricity) / B);
+                p_base_toe = (N / B) * (1 + (6 * eccentricity) / B);
+            } else {
+                // Tension state crossed tracking boundary conditions rules
+                tensionStateWarning = "HEEL TENSION STATE TRIGGERED";
+                let distanceToToe = B - resultantFromHeel;
+                
+                if (distanceToToe > 0) {
+                    p_base_toe = (2 * N) / (3 * distanceToToe);
+                    p_base_heel = 0;
+                } else {
+                    p_base_toe = 999; // Total configuration structural imbalance failure
+                    p_base_heel = 0;
+                }
+            }
+
+            // Calculation mapping suggested mathematical convergence index trackers
+            let suggestedCrackLen = 0;
+            let distanceToToe = B - resultantFromHeel;
+            suggestedCrackLen = Math.max(0, B - (3 * distanceToToe));
+
+            // Evaluate regulatory structural performance threshold envelopes criteria parameters
+            let slidingPass = false;
+            let positionPass = false;
+            
+            let reqSliding = 2.0; 
+            if(code === "FERC") {
+                reqSliding = (cohesionKsf > 0) ? (caseNumber===1?3.0:caseNumber===2?2.0:1.3) : (caseNumber===1?1.5:caseNumber===2?1.25:1.1);
+                positionPass = (Math.abs(eccentricity) <= middleThirdLimit);
+            } else if(code === "USACE") {
+                reqSliding = (caseNumber===1?2.0:caseNumber===2?1.7:1.3);
+                positionPass = (Math.abs(eccentricity) <= (B/3)); // USACE allows broader load alignment mapping envelopes
+            } else { // USBR
+                reqSliding = (caseNumber===1?3.0:caseNumber===2?2.0:1.0);
+                positionPass = (Math.abs(eccentricity) <= middleThirdLimit);
+            }
+            slidingPass = (slidingFS >= reqSliding);
+
+            return {
+                caseNumber, code, H, B, a, W, cx, cy, forcesList, SumFx, SumFy, N, SumH_driving,
+                ResistingMoment, DrivingMoment, slidingFS, reqSliding, slidingPass,
+                resultantFromHeel, eccentricity, middleThirdLimit, positionPass,
+                p_base_heel, p_base_toe, tensionStateWarning, suggestedCrackLen, activeCrack, L_uncracked, tanPhi, cohesionKsf
+            };
+        }
+
+        // --- Iterative Convergence Modeler Core Routine Engine ---
+        function iterateCrack() {
+            const currentData = runAnalysisForCase(currentLoadCase);
+            const sug = currentData.suggestedCrackLen;
+            
+            document.getElementById('chkEnableCracking').checked = true;
+            document.getElementById('inpActiveCrack').value = sug.toFixed(2);
+            
+            updateAll();
+            
+            // Re-evaluate matching context delta convergence check metrics criteria bounds
+            const nextData = runAnalysisForCase(currentLoadCase);
+            const delta = Math.abs(nextData.suggestedCrackLen - sug);
+            
+            const ind = document.getElementById('crackConvergenceIndicator');
+            if(delta < 0.05) {
+                ind.innerText = "CONVERGED";
+                ind.style.color = "var(--success)";
+            } else {
+                ind.innerText = "ITERATING MATRIX...";
+                ind.style.color = "var(--warning)";
+            }
+        }
+
+        // --- UI View Field Dispatcher Engine ---
+        function updateUIFields(d) {
+            // Summary KPI Metric Cards Mapping Rendering
+            const slideFSBox = document.getElementById('resSlidingFS');
+            slideFSBox.innerText = d.slidingFS.toFixed(2);
+            document.getElementById('cardSliding').className = "metric-card " + (d.slidingPass ? "pass" : "fail");
+            document.getElementById('lblSlidingStatus').innerText = d.slidingPass ? `PASS (Req > ${d.reqSliding})` : `CRITICAL FAILURE (< ${d.reqSliding})`;
+
+            const resLocBox = document.getElementById('resResultant');
+            resLocBox.innerText = `${d.resultantFromHeel.toFixed(1)} ft`;
+            document.getElementById('cardResultant').className = "metric-card " + (d.positionPass ? "pass" : "fail");
+            document.getElementById('lblResultantStatus').innerText = d.positionPass ? "STABLE POSITION" : "EXCEEDS DESIGN SPEC CRITERIA";
+
+            document.getElementById('resEccentricity').innerText = `${d.eccentricity.toFixed(1)} ft`;
+            document.getElementById('lblEccStatus').innerText = `Limit Boundary Max: ±${d.middleThirdLimit.toFixed(1)} ft`;
+            document.getElementById('cardEccentricity').className = "metric-card " + (Math.abs(d.eccentricity) <= d.middleThirdLimit ? "pass" : "fail");
+
+            // Structural Foundation Contact Pressures View Render
+            document.getElementById('resHeelPress').innerText = `${d.p_base_heel.toFixed(2)} ksf`;
+            document.getElementById('resToePress').innerText = `${d.p_base_toe.toFixed(2)} ksf`;
+            
+            const warningEl = document.getElementById('resTensionWarning');
+            warningEl.innerText = d.tensionStateWarning;
+            warningEl.style.color = d.tensionStateWarning.includes("TENSION") ? "var(--danger)" : "var(--success)";
+
+            document.getElementById('calcSuggestedCrack').innerText = `${d.suggestedCrackLen.toFixed(2)} ft`;
+
+            // Analytical Calculation Structural Equation Formulation Logging Display
+            document.getElementById('calcFormulaBreakdown').innerHTML = `
+                • Normal Force Effective Capacity ($N$) = <strong>${d.N.toFixed(1)} kips</strong><br>
+                • Friction Interface Variable Coefficient ($\tan\phi$) = <strong>${d.tanPhi.toFixed(3)}</strong><br>
+                • Bond Length Contact Horizon ($L_{uncracked}$) = <strong>${d.L_uncracked.toFixed(1)} ft</strong><br>
+                • Lateral Driving Active Horizontal Forces Total ($\Sigma H$) = <strong>${d.SumH_driving.toFixed(1)} kips</strong><br>
+                • Resultant Sliding Capacity Safety Index: <br>
+                &nbsp;&nbsp;[(${d.N.toFixed(1)} × ${d.tanPhi.toFixed(3)}) + (${d.cohesionKsf.toFixed(2)} × ${d.L_uncracked.toFixed(1)})] / ${d.SumH_driving.toFixed(1)} = <strong>${d.slidingFS.toFixed(3)}</strong>
+            `;
+
+            // Overturning Evaluation Methodology Code Selectors Handler Logic
+            const ovBox = document.getElementById('overturningRatioBox');
+            if(d.code === "USBR") {
+                ovBox.style.display = "block";
+                let ratio = d.ResistingMoment / (d.DrivingMoment || 1);
+                document.getElementById('txtOverturningRatio').innerText = `${ratio.toFixed(2)} (Req > ${d.caseNumber===1?'2.0':d.caseNumber===2?'1.5':'1.1'})`;
+            } else {
+                ovBox.style.display = "none";
+            }
+
+            // Dynamic Tabular Matrix Compilation Loop Configuration Generation
+            const tbody = document.getElementById('forcesTableBody');
+            tbody.innerHTML = "";
+            d.forcesList.forEach(f => {
+                let tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${f.name}</strong></td>
+                    <td class="text-right">${f.fx.toFixed(1)}</td>
+                    <td class="text-right">${f.fy < 0 ? f.fy.toFixed(1) : (f.fy === 0 ? '0.0' : '-' + f.fy.toFixed(1))}</td>
+                    <td class="text-right">${f.x.toFixed(1)}</td>
+                    <td class="text-right">${f.y.toFixed(1)}</td>
+                    <td><span style="font-size:0.75rem; color:var(--text-muted);">${f.note}</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Append Structural Static Equating Control Total Result Row Elements
+            let totalRow = document.createElement('tr');
+            totalRow.style.background = "#e2e8f0";
+            totalRow.style.fontWeight = "bold";
+            totalRow.innerHTML = `
+                <td>System Totals Matrix (Effective Resultant Net)</td>
+                <td class="text-right">${d.SumFx.toFixed(1)}</td>
+                <td class="text-right">-${d.N.toFixed(1)}</td>
+                <td class="text-right" colspan="3" style="font-size:0.75rem; text-align:center;">Effective Design Normal Compressive Vector ($N$) = ${d.N.toFixed(1)} kips</td>
+            `;
+            tbody.appendChild(totalRow);
+        }
+
+        // --- Graphic Structural Vector Rendering Engine ---
+        function renderCanvases() {
+            renderMappingCanvas();
+            renderForcesCanvas();
+        }
+
+        function renderMappingCanvas() {
+            const cvs = document.getElementById('mappingCanvas');
+            const mCtx = cvs.getContext('2d');
+            mCtx.clearRect(0,0,cvs.width,cvs.height);
+
+            // Render uploaded screenshot reference trace context frame layer background layer if present
+            if(baseImg) {
+                mCtx.drawImage(baseImg, 0,0, cvs.width, cvs.height);
+            } else {
+                mCtx.fillStyle = "#cbd5e1";
+                mCtx.fillRect(0,0,cvs.width,cvs.height);
+                mCtx.fillStyle = "#475569";
+                mCtx.font = "14px sans-serif";
+                mCtx.fillText("No section screenshot loaded background trace layer active.", 40, cvs.height/2);
+            }
+
+            // Render active tracking geometric profile alignment boundaries paths trace layer
+            mCtx.beginPath();
+            mCtx.moveTo(nodes[0].x, nodes[0].y);
+            for(let i=1; i<nodes.length; i++) mCtx.lineTo(nodes[i].x, nodes[i].y);
+            mCtx.closePath();
+            mCtx.fillStyle = "rgba(13, 148, 136, 0.35)";
+            mCtx.fill();
+            mCtx.lineWidth = 3;
+            mCtx.strokeStyle = "var(--accent)";
+            mCtx.stroke();
+
+            // Trace interactive structural handle points markers mapping arrays elements UI loop
+            const handleColors = ["#dc2626", "#2563eb", "#9333ea", "#16a34a"];
+            nodes.forEach((n, idx) => {
+                mCtx.beginPath();
+                mCtx.arc(n.x, n.y, 8, 0, 2*Math.PI);
+                mCtx.fillStyle = handleColors[idx];
+                mCtx.fill();
+                mCtx.strokeStyle = "#ffffff";
+                mCtx.lineWidth = 2;
+                mCtx.stroke();
+
+                mCtx.fillStyle = "#0f172a";
+                mCtx.font = "bold 11px sans-serif";
+                mCtx.fillText(n.label, n.x + 12, n.y + 4);
+            });
+        }
+
+        function renderForcesCanvas() {
+            const cvs = document.getElementById('forcesCanvas');
+            const fCtx = cvs.getContext('2d');
+            fCtx.clearRect(0,0,cvs.width,cvs.height);
+
+            const d = runAnalysisForCase(currentLoadCase);
+
+            // Establish proportional scale metrics maps matching core layout boundary rules
+            let pad = 60;
+            let drawW = cvs.width - 2*pad;
+            let drawH = cvs.height - 2*pad;
+
+            // Operational coordinate mappings helpers scale transforms translation variables blocks
+            let scaleX = drawW / d.B;
+            let scaleY = drawH / d.H;
+            let scaleFactor = Math.min(scaleX, scaleY);
+
+            function tx(realX) { return pad + realX * scaleFactor; }
+            function ty(realY) { return cvs.height - pad - realY * scaleFactor; }
+
+            // Trace concrete block profile configuration
+            fCtx.beginPath();
+            fCtx.moveTo(tx(0), ty(0));
+            fCtx.lineTo(tx(0), ty(d.H));
+            fCtx.lineTo(tx(d.a), ty(d.H));
+            fCtx.lineTo(tx(d.B), ty(0));
+            fCtx.closePath();
+            fCtx.fillStyle = "#94a3b8";
+            fCtx.fill();
+            fCtx.lineWidth = 2;
+            fCtx.strokeStyle = "#475569";
+            fCtx.stroke();
+
+            // Overlay water line layers visuals references limits indicators boundaries geometry profiles maps vectors
+            let hw = (currentLoadCase===1)?(parseFloat(document.getElementById('case1_hw').value)):(currentLoadCase===2?(parseFloat(document.getElementById('case2_hw').value)):(parseFloat(document.getElementById('case3_hw').value)));
+            let tw = (currentLoadCase===1)?(parseFloat(document.getElementById('case1_tw').value)):(currentLoadCase===2?(parseFloat(document.getElementById('case2_tw').value)):(parseFloat(document.getElementById('case3_tw').value)));
+
+            if(hw > 0) {
+                fCtx.fillStyle = "rgba(37, 99, 235, 0.2)";
+                fCtx.fillRect(tx(-15), ty(hw), tx(0)-tx(-15), ty(0)-ty(hw));
+                fCtx.beginPath(); fCtx.moveTo(tx(-20), ty(hw)); fCtx.lineTo(tx(0), ty(hw)); fCtx.strokeStyle = "#2563eb"; fCtx.stroke();
+            }
+            if(tw > 0) {
+                fCtx.fillStyle = "rgba(37, 99, 235, 0.2)";
+                fCtx.fillRect(tx(d.B), ty(tw), tx(d.B+10)-tx(d.B), ty(0)-ty(tw));
+                fCtx.beginPath(); fCtx.moveTo(tx(d.B), ty(tw)); fCtx.lineTo(tx(d.B+15), ty(tw)); fCtx.strokeStyle = "#2563eb"; fCtx.stroke();
+            }
+
+            // Visual vector drawing tool function wrapper standard template
+            function drawArrow(x0, y0, x1, y1, color, label) {
+                fCtx.strokeStyle = color;
+                fCtx.fillStyle = color;
+                fCtx.lineWidth = 3;
+                fCtx.beginPath(); fCtx.moveTo(x0, y0); fCtx.lineTo(x1, y1); fCtx.stroke();
+                
+                let angle = Math.atan2(y1 - y0, x1 - x0);
+                fCtx.beginPath();
+                fCtx.moveTo(x1, y1);
+                fCtx.lineTo(x1 - 10 * Math.cos(angle - Math.PI/6), y1 - 10 * Math.sin(angle - Math.PI/6));
+                fCtx.lineTo(x1 - 10 * Math.cos(angle + Math.PI/6), y1 - 10 * Math.sin(angle + Math.PI/6));
+                fCtx.closePath(); fCtx.fill();
+
+                fCtx.fillStyle = "#0f172a";
+                fCtx.font = "bold 10px sans-serif";
+                fCtx.fillText(label, x0 + (x1-x0)*0.2, y0 + (y1-y0)*0.2 - 5);
+            }
+
+            // Draw system load configuration markers maps vectors
+            d.forcesList.forEach(f => {
+                let fxCoord = tx(f.x);
+                let fyCoord = ty(f.y);
+
+                if(f.name.includes("Weight")) {
+                    drawArrow(fxCoord, fyCoord - 40, fxCoord, fyCoord, "rgba(22, 163, 74, 0.85)", "W");
+                } else if(f.name.includes("Headwater")) {
+                    drawArrow(tx(-35), ty(hw/3), tx(0), ty(hw/3), "rgba(37, 99, 235, 0.85)", "P_hw");
+                } else if(f.name.includes("Tailwater")) {
+                    drawArrow(tx(d.B + 35), ty(tw/3), tx(d.B), ty(tw/3), "rgba(37, 99, 235, 0.85)", "P_tw");
+                } else if(f.name.includes("Uplift")) {
+                    drawArrow(fxCoord, ty(0) + 40, fxCoord, ty(0), "rgba(220, 38, 38, 0.85)", "Uplift Force");
+                } else if(f.name.includes("Seismic")) {
+                    drawArrow(fxCoord - 45, fyCoord, fxCoord, fyCoord, "rgba(147, 51, 234, 0.85)", "F_eq (Seismic)");
+                }
+            });
+
+            // Mark effective structural load axis location tick marker metrics properties
+            fCtx.beginPath();
+            fCtx.arc(tx(d.resultantFromHeel), ty(0), 6, 0, 2*Math.PI);
+            fCtx.fillStyle = "#f97316";
+            fCtx.fill();
+            fCtx.strokeStyle = "#ffffff"; fCtx.lineWidth = 1.5; fCtx.stroke();
+            fCtx.fillStyle = "#f97316"; fCtx.font = "bold 11px sans-serif";
+            fCtx.fillText("R", tx(d.resultantFromHeel) - 4, ty(0) - 10);
+        }
+
+        // --- Anthropic Vision Extraction Controller API Bridge Integration Pipeline ---
+        async function runAIVision() {
+            const apiKey = sessionStorage.getItem('damstab_ant_key');
+            if(!apiKey) { alert("Configure API key configuration details first."); return; }
+            if(!baseImg) { alert("Upload a cross-section layout target visualization screenshot trace image sequence first."); return; }
+
+            const statusEl = document.getElementById('visionStatus');
+            statusEl.innerText = "PARSING ASSET INFRASTRUCTURE VIA CLAUDE VISION PIPELINE...";
+            statusEl.style.color = "var(--warning)";
+
+            // Convert raw source node element reference properties data to standard base64 string format block configuration models
+            let base64Data = baseImg.src.split(',')[1];
+            let mediaType = baseImg.src.split(';')[0].split(':')[1];
+
+            const systemPrompt = `You are an expert structural dam engineering assistant. Analyze the uploaded gravity dam cross section image.
+Extract all possible dimensional and material values. Return ONLY a valid JSON object matching exactly these keys with numeric values or null if not visible. Do not include markdown wraps, code fences, or text outside the raw JSON content:
+{
+  "damHeight": 60,
+  "baseWidth": 45,
+  "topWidth": 6,
+  "concreteUnitWeight": 150,
+  "frictionAngle": 40,
+  "cohesion": 5.0,
+  "drainDistance": 10,
+  "drainEfficiency": 0.5,
+  "headwater": 58,
+  "tailwater": 5
+}`;
+
+            try {
+                const response = await fetch("https://api.anthropic.com/v1/messages", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "x-api-key": apiKey,
+                        "anthropic-version": "2023-06-01",
+                        "anthropic-dangerous-direct-browser-access": "true"
+                    },
+                    body: JSON.stringify({
+                        model: document.getElementById('cfgModel').value,
+                        max_tokens: 1200,
+                        messages: [
+                            {
+                                role: "user",
+                                content: [
+                                    {
+                                        type: "image",
+                                        source: {
+                                            type: "base64",
+                                            media_type: mediaType,
+                                            data: base64Data
+                                        }
+                                    },
+                                    {
+                                        type: "text",
+                                        text: "Extract structural parameters from this dam cross-section graphic image into raw data metrics format."
+                                    }
+                                ]
+                            }
+                        ],
+                        system: systemPrompt
+                    })
+                });
+
+                if(!response.ok) throw new Error(`HTTP System Communication Error: Status ${response.status}`);
+                
+                const resData = await response.json();
+                let txtResult = resData.content[0].text.trim();
+                
+                // Clean markdown code blocks if the model ignored system prompts and appended formatting fences
+                if(txtResult.startsWith("```json")) txtResult = txtResult.replace("```json", "").replace("```", "");
+                else if(txtResult.startsWith("```")) txtResult = txtResult.replace(/```/g, "");
+
+                aiInferredData = JSON.parse(txtResult.trim());
+                
+                statusEl.innerText = "EXTRACTION SUCCESSFUL";
+                statusEl.style.color = "var(--success)";
+                
+                // Print attributes summary listing cards views rendering elements updates bounds
+                const bCard = document.getElementById('aiExtractedCard');
+                const bContent = document.getElementById('aiBadges');
+                bCard.style.display = "block";
+                bContent.innerHTML = "";
+                
+                for (const [k, v] of Object.entries(aiInferredData)) {
+                    if(v !== null) {
+                        bContent.innerHTML += `<div><strong>${k}</strong>: <span class="badge badge-success">${v}</span></div>`;
+                    }
+                }
+
+            } catch (err) {
+                console.error(err);
+                statusEl.innerText = "PARSING PIPELINE ERROR EXCEPTION MET: " + err.message;
+                statusEl.style.color = "var(--danger)";
+            }
+        }
+
+        function applyAIExtractions() {
+            if(!aiInferredData) return;
+            if(aiInferredData.damHeight) document.getElementById('inpH').value = aiInferredData.damHeight;
+            if(aiInferredData.baseWidth) document.getElementById('inpB').value = aiInferredData.baseWidth;
+            if(aiInferredData.topWidth) document.getElementById('inpA').value = aiInferredData.topWidth;
+            if(aiInferredData.concreteUnitWeight) document.getElementById('inpGammaC').value = aiInferredData.concreteUnitWeight;
+            if(aiInferredData.frictionAngle) document.getElementById('inpPhi').value = aiInferredData.frictionAngle;
+            if(aiInferredData.cohesion) document.getElementById('inpCohesion').value = aiInferredData.cohesion;
+            if(aiInferredData.drainDistance) document.getElementById('inpDrainDist').value = aiInferredData.drainDistance;
+            if(aiInferredData.drainEfficiency) document.getElementById('inpDrainEff').value = aiInferredData.drainEfficiency;
+
+            if(aiInferredData.headwater) {
+                document.getElementById('case1_hw').value = aiInferredData.headwater;
+                document.getElementById('case3_hw').value = aiInferredData.headwater;
+            }
+            if(aiInferredData.tailwater) {
+                document.getElementById('case1_tw').value = aiInferredData.tailwater;
+                document.getElementById('case3_tw').value = aiInferredData.tailwater;
+            }
+
+            alert("Structural system variables properties pre-loaded from inference engine layers data targets maps successfully.");
+            updateAll();
+        }
+
+        // --- Export Multi-Case Analytical CSV Report Document Utility Routine ---
+        function exportResultsCSV() {
+            let cases = [1, 2, 3];
+            let csvRows = [];
+            csvRows.push("DamStab Structural Screening Analysis System Summary Report");
+            csvRows.push(`Generated Framework Timestamp Scope Era,2026`);
+            csvRows.push("");
+            csvRows.push("Load Case ID,Design Code Standard,Dam Height (ft),Base Width (ft),Sliding FS,Required Min FS,Status Verification,Resultant from Heel (ft),Eccentricity (ft),Heel Pressure (ksf),Toe Pressure (ksf)");
+
+            cases.forEach(cId => {
+                let d = runAnalysisForCase(cId);
+                let label = cId === 1 ? "Usual" : (cId === 2 ? "Unusual" : "Extreme");
+                csvRows.push(`${label},${d.code},${d.H},${d.B},${d.slidingFS.toFixed(2)},${d.reqSliding},${d.slidingPass?'PASS':'FAIL'},${d.resultantFromHeel.toFixed(1)},${d.eccentricity.toFixed(1)},${d.p_base_heel.toFixed(2)},${d.p_base_toe.toFixed(2)}`);
+            });
+
+            let csvContent = "data:text/csv;charset=utf-8," + csvRows.join("\n");
+            let encodedUri = encodeURI(csvContent);
+            let link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "DamStab_Structural_Screening_Report.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
