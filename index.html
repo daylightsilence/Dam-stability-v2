@@ -1536,7 +1536,12 @@ function calcLoads(pts, p, caseKey) {
       // Upstream-facing face: outward normal points upstream (nx < -0.5)
       // AND not the main heel face (already captured by HW triangle in section 4)
       if (nx >= -0.5) continue;                     // not predominantly upstream-facing
-      if (xmid <= heel + 0.5) continue;             // this is the main heel face — skip (section 4 covers it)
+      // Skip if this IS the outermost upstream boundary — i.e., no polygon node exists
+      // further upstream (lower x) than this face. Those faces are already captured by
+      // the headwater triangle in section 4. Only recessed faces (keys, steps set back
+      // from the main face) get an additional hydrostatic load here.
+      const hasNodesFurtherUpstream = pts.some(n => n.x < xmid - 0.5);
+      if (!hasNodesFurtherUpstream) continue;
       if (ymid >= hw) continue;                     // not submerged
       // Full hydrostatic pressure (trapezoidal): depth from HW surface to each point on the face.
       // Clip face to the HW surface at the top.
