@@ -1415,6 +1415,47 @@ function calcLoads(pts, p, caseKey) {
     }
   }
 
+  // 3b. Vertical water weight on inclined upstream face
+  // = γ_w × (area of water wedge between the inclined concrete face and the vertical line
+  //   through the heel). This is the vertical component of hydrostatic force on a sloped
+  //   upstream face — a stabilising downward load on the concrete.
+  let upstreamWedgeData = null; // saved for diagram rendering
+  if (hd > 0) {
+    let wedgeArea = 0, wxSum = 0;
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i], b = pts[(i+1) % pts.length];
+      if ((a.x + b.x) / 2 > (heel + toe) / 2) continue; // right half: skip
+      const dyRaw = b.y - a.y;
+      if (Math.abs(dyRaw) < 1e-6) continue; // horizontal edge: skip
+      // Orient so y increases upward (a lower, b upper)
+      let [x1, y1, x2, y2] = dyRaw > 0 ? [a.x, a.y, b.x, b.y] : [b.x, b.y, a.x, a.y];
+      if (y1 >= hw || y2 <= base) continue; // outside HW–base range
+      // Clip at base
+      if (y1 < base) { const t=(base-y1)/(y2-y1); x1=x1+t*(x2-x1); y1=base; }
+      // Clip at hw
+      if (y2 > hw)   { const t=(hw-y1)/(y2-y1);   x2=x1+t*(x2-x1); y2=hw;   }
+      const xAvg = (x1 + x2) / 2;
+      const dx   = xAvg - heel; // offset downstream from heel
+      if (dx < 0.001) continue; // edge lies at or left of heel: nothing between face and heel
+      const segArea = dx * (y2 - y1);
+      wedgeArea += segArea;
+      wxSum     += xAvg * segArea;
+    }
+    if (wedgeArea > 0.01) {
+      const Fww   = gw * wedgeArea / 1000;            // kips/ft, downward
+      const xCent = wxSum / wedgeArea;
+      const arm   = toe - xCent;
+      vForces.push({
+        label: 'Water on US Face (vert)',
+        F: Fww,
+        arm,
+        moment: Fww * arm,
+        note: `wedge ${wedgeArea.toFixed(2)} ft² between upstream face and vertical heel line`
+      });
+      upstreamWedgeData = { area: wedgeArea, xCent, F: Fww };
+    }
+  }
+
   // 4. Headwater horizontal
   if (hd > 0) {
     const FHW = 0.5 * gw * hd * hd / 1000; // kips/ft
@@ -1494,22 +1535,54 @@ function calcLoads(pts, p, caseKey) {
     });
   }
 
-  // 9. #3 — Foundation key horizontal load.
-  //    A key extends below the base; its upstream face carries near-constant water
-  //    pressure (≈ base headwater intensity) over the key depth — tracked separately.
-  const minNodeY = Math.min(...pts.map(n => n.y));
-  const keyDepth = base - minNodeY; // >0 if any node dips below the base line
-  if (keyDepth > 0.01 && hd > 0) {
-    const pBase = gw * hd / 1000;            // ksf at base elevation
-    const Fkey  = pBase * keyDepth;          // kips/ft (rectangular over key depth)
-    const yArm  = -keyDepth / 2;             // acts below the base ⇒ negative arm
-    hForces.push({
-      label: 'Foundation Key (water)',
-      F: Fkey,
-      arm: yArm,
-      moment: Fkey * yArm,
-      note: `key depth ${keyDepth.toFixed(2)} ft below base`
-    });
+  // 9. #3 — Horizontal hydrostatic load on a non-horizontal base.
+  //    Any base/foundation face with a vertical component (a key, or a step/shift in
+  //    the base elevation) is exposed to water at its foundation head and therefore
+  //    carries a horizontal hydrostatic load. We walk every polygon edge in the
+  //    foundation zone, and for each vertical-component face add the water pressure
+  //    acting over its vertical projection. Sign is set from the true outward normal
+  //    (upstream-facing ⇒ driving +, downstream-facing ⇒ resisting −). Flat (horizontal)
+  //    base segments contribute no horizontal load and the vertical upstream face is
+  //    excluded (already captured by the headwater triangle).
+  if (hd > 0) {
+    let signedA = 0;
+    for (let i = 0; i < pts.length; i++) {
+      const j = (i + 1) % pts.length;
+      signedA += pts[i].x * pts[j].y - pts[j].x * pts[i].y;
+    }
+    const wsign = signedA >= 0 ? 1 : -1;            // +1 CCW, -1 CW
+    const damH  = Math.max(...pts.map(n => n.y)) - base;
+    const zoneTol = Math.max(0.5, 0.05 * damH);     // band just above base counted as foundation
+    let baseFaceIdx = 0;
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i], b = pts[(i + 1) % pts.length];
+      const dx = b.x - a.x, dy = b.y - a.y;
+      if (Math.abs(dy) < 0.05) continue;            // ~horizontal face: no horizontal load
+      const L = Math.hypot(dx, dy);
+      const ymid = (a.y + b.y) / 2;
+      const nx = wsign * dy / L;                    // outward normal x-component
+      const ny = wsign * (-dx) / L;                 // outward normal y-component
+      // Foundation face = clearly below base (a key) OR a downward/outward-facing
+      // step sitting right at base level. This deliberately skips the upstream face
+      // (horizontal normal, well above base).
+      const isFoundation = (ymid < base - 0.01) || (ny < -0.10 && ymid <= base + zoneTol);
+      if (!isFoundation) continue;
+      if (ymid >= hw) continue;                     // not submerged
+      const p_w = gw * (hw - ymid) / 1000;          // ksf at face mid-depth
+      const Fh  = -p_w * wsign * dy;                // + = driving (downstream)
+      if (Math.abs(Fh) < 1e-4) continue;
+      const arm = ymid - base;                      // arm relative to base (neg below base)
+      baseFaceIdx++;
+      hForces.push({
+        label: 'Base Face Hydrostatic',
+        F: Fh,
+        arm,
+        moment: Fh * arm,
+        x: (a.x + b.x) / 2,                          // face mid-x (for diagram)
+        yMid: ymid,
+        note: `vert face Δh=${Math.abs(dy).toFixed(2)} ft @ EL ${ymid.toFixed(1)} (${Fh >= 0 ? 'driving' : 'resisting'})`
+      });
+    }
   }
 
   // Sums
@@ -1524,7 +1597,7 @@ function calcLoads(pts, p, caseKey) {
     upliftPressures.pD = (pT + (1 - p.drainEff) * (pH - pT)) * 1000;
     upliftPressures.drainX = heel + p.drainDist;
   }
-  return { vForces, hForces, sumV, sumH, sumMV, sumMH, B, heel, toe, hd, td, W, cx, cy, area, upliftPressures };
+  return { vForces, hForces, sumV, sumH, sumMV, sumMH, B, heel, toe, hd, td, W, cx, cy, area, upliftPressures, upstreamWedgeData };
 }
 
 // === STABILITY CHECKS ===
@@ -1806,6 +1879,59 @@ function drawLoadDiagram(res) {
     ctx.textAlign = 'left';
   }
 
+  // === UPSTREAM FACE WATER WEDGE (vertical water weight on inclined face) ===
+  // Shade the actual water-filled space between the inclined concrete face and a vertical
+  // heel line, then show a downward arrow for the resultant vertical force.
+  if (loads.upstreamWedgeData && hd > 0) {
+    const { xCent, F: Fww } = loads.upstreamWedgeData;
+    const heelX = px(heel);
+    const baseY = py(p.baseElev);
+    const hwLine = py(p.baseElev + hd);
+
+    // Trace the upstream face of the polygon (left half, below HW) and close with
+    // the vertical heel line to shade the water wedge.
+    const upFacePoints = [];
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i], b = pts[(i+1) % pts.length];
+      if ((a.x + b.x) / 2 > (heel + toe) / 2) continue;
+      // Walk upward along each clipped segment
+      const dyRaw = b.y - a.y;
+      if (Math.abs(dyRaw) < 1e-6) continue;
+      let [x1,y1,x2,y2] = dyRaw > 0 ? [a.x,a.y,b.x,b.y] : [b.x,b.y,a.x,a.y];
+      if (y1 >= p.baseElev + hd || y2 <= p.baseElev) continue;
+      if (y1 < p.baseElev) { const t=(p.baseElev-y1)/(y2-y1); x1=x1+t*(x2-x1); y1=p.baseElev; }
+      if (y2 > p.baseElev + hd) { const t=(p.baseElev+hd-y1)/(y2-y1); x2=x1+t*(x2-x1); y2=p.baseElev+hd; }
+      if ((x1+x2)/2 - heel < 0.001) continue;
+      upFacePoints.push([px(x1), py(y1)], [px(x2), py(y2)]);
+    }
+    if (upFacePoints.length >= 2) {
+      upFacePoints.sort((a, b) => b[1] - a[1]); // sort bottom → top (larger canvas y first)
+      ctx.beginPath();
+      // Bottom-left corner (heel, base)
+      ctx.moveTo(heelX, baseY);
+      // Walk the upstream face bottom → top
+      upFacePoints.forEach(([x, y]) => ctx.lineTo(x, y));
+      // Top-left corner (heel, hw)
+      ctx.lineTo(heelX, hwLine);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(26,108,199,0.14)';
+      ctx.fill();
+      ctx.setLineDash([3, 3]);
+      ctx.strokeStyle = '#1a6cc7'; ctx.lineWidth = 1.2;
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    // Downward arrow at centroid
+    const xc = px(xCent);
+    const arrowTop = hwLine + 10;
+    const arrowBot = baseY - 10;
+    ctx.strokeStyle = '#1a4a9a'; ctx.fillStyle = '#1a4a9a'; ctx.lineWidth = 2;
+    arrow(ctx, xc, arrowTop, xc, arrowBot, 7);
+    ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('V_w=' + Fww.toFixed(2) + ' k/ft', xc, arrowTop - 4);
+    ctx.textAlign = 'left';
+  }
+
   // === HW pressure triangle (extends LEFT from heel) ===
   if (hd > 0) {
     const heelX  = px(heel);
@@ -1887,37 +2013,28 @@ function drawLoadDiagram(res) {
     ctx.textAlign = 'left';
   }
 
-  // === SEISMIC arrow ===
-  const eqF = loads.hForces.find(f => f.label.includes('Seismic'));
-  if (eqF) {
-    const cx   = loads.cx, cy = loads.cy;
-    const ySeis = py(cy);
-    ctx.strokeStyle = '#7b2fbe'; ctx.fillStyle = '#7b2fbe'; ctx.lineWidth = 2.5;
-    arrow(ctx, px(heel) - 40, ySeis, px(heel), ySeis, 9);
-    ctx.font = 'bold 11px monospace'; ctx.textAlign = 'right';
-    ctx.fillText('EQ = ' + eqF.F.toFixed(2) + ' k/ft', px(heel) - 44, ySeis - 5);
-    ctx.textAlign = 'left';
-  }
+  // Pre-compute the left extent used by the HW pressure diagram so that seismic
+  // and ice arrows can be placed cleanly to the left of it without overlapping.
+  const hwTriW  = hwIntensity * pressScale;
+  const isSeismicCase = LOAD_CASES[res.caseKey].seismic;
+  const wgIsActive = p.useWestergaard && p.kh > 0 && hd > 0 && isSeismicCase;
+  const wgMaxIntensity = wgIsActive ? 0.726 * p.kh * hwIntensity : 0;
+  const wgMaxW  = wgMaxIntensity * pressScale;
+  // leftBoundary: the x-pixel of the furthest-left element of the HW/Westergaard diagrams
+  const leftBoundary = px(heel) - Math.max(hwTriW, wgMaxW);
 
-  // === WESTERGAARD pressure curve ===
-  if (p.useWestergaard && p.kh > 0 && hd > 0) {
+  // === WESTERGAARD pressure curve (seismic/extreme cases only) ===
+  if (wgIsActive) {
     const heelX = px(heel);
     const baseY = py(p.baseElev);
     const topY  = py(p.baseElev + hd);
-    // max intensity at base: p(hd) = 0.726 * kh * γw * hd (psf) = 0.726 * kh * hwIntensity (ksf)
-    const wgMaxIntensity = 0.726 * p.kh * hwIntensity;
-    const wgMaxW = wgMaxIntensity * pressScale; // pixels at base
-
-    // Draw parabolic (sqrt) curve: offset leftward from heel
-    // at canvas y-position yc (between topY and baseY), depth = (yc - topY)/(baseY - topY) * hd
     const steps = 40;
     ctx.beginPath();
-    ctx.moveTo(heelX, topY); // zero at water surface
+    ctx.moveTo(heelX, topY);
     for (let i = 1; i <= steps; i++) {
-      const t = i / steps; // 0..1, fraction of depth
+      const t = i / steps;
       const yc = topY + t * (baseY - topY);
-      const w  = wgMaxW * Math.sqrt(t); // parabolic (Westergaard)
-      ctx.lineTo(heelX - w, yc);
+      ctx.lineTo(heelX - wgMaxW * Math.sqrt(t), yc);
     }
     ctx.lineTo(heelX, baseY);
     ctx.closePath();
@@ -1925,12 +2042,22 @@ function drawLoadDiagram(res) {
     ctx.fill();
     ctx.strokeStyle = '#7b2fbe'; ctx.lineWidth = 1.5;
     ctx.stroke();
-
-    // Label at base
     ctx.font = '9px monospace'; ctx.textAlign = 'right'; ctx.fillStyle = '#7b2fbe';
-    ctx.fillText(wgMaxIntensity.toFixed(3) + ' ksf', heelX - wgMaxW - 4, baseY + 12);
-    ctx.font = '9px monospace';
+    ctx.fillText(wgMaxIntensity.toFixed(3) + ' ksf', heelX - wgMaxW - 4, baseY + 24);
     ctx.fillText('Westergaard', heelX - wgMaxW / 2, topY - 4);
+    ctx.textAlign = 'left';
+  }
+
+  // === SEISMIC arrow — to the LEFT of the entire HW/Westergaard diagram area ===
+  const eqF = loads.hForces.find(f => f.label.includes('Seismic'));
+  if (eqF) {
+    const ySeis    = py(loads.cy);
+    const arrowEnd = leftBoundary - 8;
+    const arrowStart = arrowEnd - 40;
+    ctx.strokeStyle = '#7b2fbe'; ctx.fillStyle = '#7b2fbe'; ctx.lineWidth = 2.5;
+    arrow(ctx, arrowStart, ySeis, arrowEnd, ySeis, 9);
+    ctx.font = 'bold 11px monospace'; ctx.textAlign = 'right';
+    ctx.fillText('EQ = ' + eqF.F.toFixed(2) + ' k/ft', arrowStart - 4, ySeis - 5);
     ctx.textAlign = 'left';
   }
 
@@ -1997,15 +2124,17 @@ function drawLoadDiagram(res) {
     ctx.textAlign = 'left';
   }
 
-  // === ICE thrust arrow (#11) ===
+  // === ICE thrust arrow — also to the LEFT of the HW/Westergaard diagram area ===
   const iceF = loads.hForces.find(f => f.label.includes('Ice'));
   if (iceF) {
     const iceEl = (p.iceElev !== null && p.iceElev !== undefined) ? p.iceElev : p[LOAD_CASES[res.caseKey].hwKey];
-    const yIce = py(iceEl);
+    const yIce    = py(iceEl);
+    const iceEnd  = leftBoundary - 8;
+    const iceStart = iceEnd - 36;
     ctx.strokeStyle = '#1f7a99'; ctx.fillStyle = '#1f7a99'; ctx.lineWidth = 2.5;
-    arrow(ctx, px(heel) - 36, yIce, px(heel), yIce, 8);
+    arrow(ctx, iceStart, yIce, iceEnd, yIce, 8);
     ctx.font = 'bold 10px monospace'; ctx.textAlign = 'right';
-    ctx.fillText('Ice = ' + iceF.F.toFixed(2) + ' k/ft', px(heel) - 40, yIce - 4);
+    ctx.fillText('Ice = ' + iceF.F.toFixed(2) + ' k/ft', iceStart - 4, yIce - 4);
     ctx.textAlign = 'left';
   }
 
@@ -2034,6 +2163,20 @@ function drawLoadDiagram(res) {
     ctx.fillText('drain', px(dr), py(p.baseElev) + 52);
     ctx.textAlign = 'left';
   }
+
+  // === BASE FACE HYDROSTATIC arrows (keys / base steps) ===
+  loads.hForces.filter(f => f.label === 'Base Face Hydrostatic' && f.x !== undefined).forEach(f => {
+    const yf = py(f.yMid);
+    const driving = f.F >= 0;            // driving = points downstream (+x)
+    const xf = px(f.x);
+    const len = 26;
+    ctx.strokeStyle = '#b8431f'; ctx.fillStyle = '#b8431f'; ctx.lineWidth = 2;
+    if (driving) arrow(ctx, xf - len, yf, xf, yf, 7);   // → into the face (downstream)
+    else         arrow(ctx, xf + len, yf, xf, yf, 7);   // ← (upstream)
+    ctx.font = '8px monospace'; ctx.textAlign = driving ? 'right' : 'left';
+    ctx.fillText(Math.abs(f.F).toFixed(2), driving ? xf - len - 2 : xf + len + 2, yf - 3);
+    ctx.textAlign = 'left';
+  });
 
   // === ELEVATION labels ===
   const hw_key = LOAD_CASES[res.caseKey].hwKey;
