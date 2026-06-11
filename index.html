@@ -1331,24 +1331,26 @@ function calcLoads(pts, p, caseKey) {
     });
   }
 
-  // 1c. #2 — vertical water weight resting on horizontal "landings" of the upstream face.
-  //     Any near-horizontal upward-facing edge of the upstream profile that lies below the
-  //     headwater carries a downward water column = γw × depth × horizontal run.
+  // 1c. Vertical water weight on horizontal upstream landings.
+  // Each near-horizontal upward-facing edge below HW carries a rectangular water column.
+  // Also save per-segment data for diagram rendering.
+  const landingSegs = []; // [{x1, x2, y, depth}] for drawing
   if (hd > 0) {
     let Vwater = 0, Mwater = 0;
     for (let i = 0; i < pts.length; i++) {
       const a = pts[i], b = pts[(i + 1) % pts.length];
       const dx = b.x - a.x, dy = b.y - a.y;
       const ymid = (a.y + b.y) / 2, xmid = (a.x + b.x) / 2;
-      // Upstream half of the section, below water, edge with a horizontal run (a landing/step)
-      const isUpstreamHalf = xmid < (heel + toe) / 2;
-      const isNearHoriz = Math.abs(dy) < Math.abs(dx) * 0.30; // shallow slope ⇒ acts as a landing
-      if (isUpstreamHalf && isNearHoriz && ymid < hw && Math.abs(dx) > 1e-6) {
+      const isNearHoriz = Math.abs(dy) < Math.abs(dx) * 0.30; // shallow ⇒ landing
+      const belowHW = ymid < hw;
+      const notBase  = ymid > base + 0.5; // exclude the actual base edge
+      if (isNearHoriz && belowHW && notBase && Math.abs(dx) > 1e-6) {
         const depth = hw - ymid;
-        const dV = gw * depth * Math.abs(dx) / 1000; // kips/ft, downward
+        const dV = gw * depth * Math.abs(dx) / 1000;
         const arm = toe - xmid;
         Vwater += dV;
         Mwater += dV * arm;
+        landingSegs.push({ x1: Math.min(a.x, b.x), x2: Math.max(a.x, b.x), y: ymid, depth });
       }
     }
     if (Vwater > 0.001) {
@@ -1357,7 +1359,7 @@ function calcLoads(pts, p, caseKey) {
         F: Vwater,
         arm: Vwater > 0 ? Mwater / Vwater : 0,
         moment: Mwater,
-        note: 'vertical weight of water on upstream steps'
+        note: `water column on ${landingSegs.length} landing(s)`
       });
     }
   }
@@ -1568,7 +1570,7 @@ function calcLoads(pts, p, caseKey) {
     upliftPressures.pD = (pT + (1 - p.drainEff) * (pH - pT)) * 1000;
     upliftPressures.drainX = heel + p.drainDist;
   }
-  return { vForces, hForces, sumV, sumH, sumMV, sumMH, B, heel, toe, hd, td, W, cx, cy, area, upliftPressures, upstreamWedgeData };
+  return { vForces, hForces, sumV, sumH, sumMV, sumMH, B, heel, toe, hd, td, W, cx, cy, area, upliftPressures, upstreamWedgeData, landingSegs };
 }
 
 // === STABILITY CHECKS ===
@@ -1850,57 +1852,38 @@ function drawLoadDiagram(res) {
     ctx.textAlign = 'left';
   }
 
-  // === UPSTREAM FACE WATER WEDGE (vertical water weight on inclined face) ===
-  // Shade the actual water-filled space between the inclined concrete face and a vertical
-  // heel line, then show a downward arrow for the resultant vertical force.
-  if (loads.upstreamWedgeData && hd > 0) {
-    const { xCent, F: Fww } = loads.upstreamWedgeData;
-    const heelX = px(heel);
-    const baseY = py(p.baseElev);
-    const hwLine = py(p.baseElev + hd);
+  // === UPSTREAM HORIZONTAL LANDINGS — vertical water weight ===
+  // For each horizontal ledge below HW, draw a filled rectangle (water column above it)
+  // and a downward arrow for the resultant force.
+  if (loads.landingSegs && loads.landingSegs.length > 0 && hd > 0) {
+    loads.landingSegs.forEach(seg => {
+      const x1c = px(seg.x1), x2c = px(seg.x2);
+      const ledgeY = py(seg.y);            // canvas y of the ledge surface
+      const hwY   = py(seg.y + seg.depth); // canvas y of water surface above it
+      const w = Math.abs(x2c - x1c);
+      const h = Math.abs(ledgeY - hwY);
+      const xLeft = Math.min(x1c, x2c);
 
-    // Trace the upstream face of the polygon (left half, below HW) and close with
-    // the vertical heel line to shade the water wedge.
-    const upFacePoints = [];
-    for (let i = 0; i < pts.length; i++) {
-      const a = pts[i], b = pts[(i+1) % pts.length];
-      if ((a.x + b.x) / 2 > (heel + toe) / 2) continue;
-      // Walk upward along each clipped segment
-      const dyRaw = b.y - a.y;
-      if (Math.abs(dyRaw) < 1e-6) continue;
-      let [x1,y1,x2,y2] = dyRaw > 0 ? [a.x,a.y,b.x,b.y] : [b.x,b.y,a.x,a.y];
-      if (y1 >= p.baseElev + hd || y2 <= p.baseElev) continue;
-      if (y1 < p.baseElev) { const t=(p.baseElev-y1)/(y2-y1); x1=x1+t*(x2-x1); y1=p.baseElev; }
-      if (y2 > p.baseElev + hd) { const t=(p.baseElev+hd-y1)/(y2-y1); x2=x1+t*(x2-x1); y2=p.baseElev+hd; }
-      if ((x1+x2)/2 - heel < 0.001) continue;
-      upFacePoints.push([px(x1), py(y1)], [px(x2), py(y2)]);
-    }
-    if (upFacePoints.length >= 2) {
-      upFacePoints.sort((a, b) => b[1] - a[1]); // sort bottom → top (larger canvas y first)
-      ctx.beginPath();
-      // Bottom-left corner (heel, base)
-      ctx.moveTo(heelX, baseY);
-      // Walk the upstream face bottom → top
-      upFacePoints.forEach(([x, y]) => ctx.lineTo(x, y));
-      // Top-left corner (heel, hw)
-      ctx.lineTo(heelX, hwLine);
-      ctx.closePath();
-      ctx.fillStyle = 'rgba(26,108,199,0.14)';
-      ctx.fill();
+      // Filled rectangle = water above ledge
+      ctx.fillStyle = 'rgba(26,108,199,0.20)';
+      ctx.fillRect(xLeft, hwY, w, h);
       ctx.setLineDash([3, 3]);
       ctx.strokeStyle = '#1a6cc7'; ctx.lineWidth = 1.2;
-      ctx.stroke();
+      ctx.strokeRect(xLeft, hwY, w, h);
       ctx.setLineDash([]);
-    }
-    // Downward arrow at centroid
-    const xc = px(xCent);
-    const arrowTop = hwLine + 10;
-    const arrowBot = baseY - 10;
-    ctx.strokeStyle = '#1a4a9a'; ctx.fillStyle = '#1a4a9a'; ctx.lineWidth = 2;
-    arrow(ctx, xc, arrowTop, xc, arrowBot, 7);
-    ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
-    ctx.fillText('V_w=' + Fww.toFixed(2) + ' k/ft', xc, arrowTop - 4);
-    ctx.textAlign = 'left';
+
+      // Downward force arrow at midpoint
+      const xMid = xLeft + w / 2;
+      const arrowLen = Math.max(h * 0.6, 14);
+      ctx.strokeStyle = '#1a4a9a'; ctx.fillStyle = '#1a4a9a'; ctx.lineWidth = 2;
+      arrow(ctx, xMid, hwY + 4, xMid, hwY + 4 + arrowLen, 6);
+
+      // Force label
+      const dV = p.waterUW * seg.depth * (seg.x2 - seg.x1) / 1000;
+      ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
+      ctx.fillText('↓' + dV.toFixed(2) + ' k/ft', xMid, hwY - 3);
+      ctx.textAlign = 'left';
+    });
   }
 
   // === HW pressure triangle (extends LEFT from heel) ===
@@ -2136,16 +2119,47 @@ function drawLoadDiagram(res) {
   }
 
   // === BASE FACE HYDROSTATIC arrows (keys / base steps) ===
+  // === SHEAR KEY — triangular horizontal hydrostatic load ===
+  // Draw a filled triangle from 0 at key top to max at key bottom, with arrow at resultant.
   loads.hForces.filter(f => f.label === 'Base Face Hydrostatic' && f.x !== undefined).forEach(f => {
-    const yf = py(f.yMid);
-    const driving = f.F >= 0;            // driving = points downstream (+x)
-    const xf = px(f.x);
-    const len = 26;
+    const driving = f.F >= 0;
+    const xFace = px(f.x);
+    // Recover key top/bottom from yMid and force magnitude
+    // yTop = base (key top is at base elevation), yBot derived from stored arm
+    const yTop = py(p.baseElev);
+    // Estimate key depth from arm: arm = yMid - base (negative for below base), yMid = base + arm
+    const yBot = py(p.baseElev + f.arm * 2); // yBot = base - |arm|*2 roughly... use yMid directly
+    const yMidC = py(f.yMid);
+    // key face spans from base down to 2*(yMid-base) below base
+    const keyDepth = Math.abs(p.baseElev - f.yMid) * 2; // full key height estimate
+    const yBotC = py(p.baseElev - keyDepth);
+    const maxLen = Math.max(Math.abs(keyDepth) * s * 0.8, 20); // arrow length proportional to key depth in px
+
+    // Triangular shape: tip at top (zero), wide at bottom (max)
+    const tipX  = xFace + (driving ? 0 : 0);
+    const dir   = driving ? -1 : 1; // driving = arrow points right (from left), so triangle extends left
+    ctx.fillStyle   = 'rgba(184,67,31,0.25)';
+    ctx.strokeStyle = '#b8431f';
+    ctx.lineWidth   = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(xFace, yTop);                         // tip at key top (zero force)
+    ctx.lineTo(xFace + dir * maxLen, yBotC);         // base of triangle at key bottom
+    ctx.lineTo(xFace, yBotC);                        // back to face at key bottom
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+
+    // Resultant arrow at 2/3 down from top (centroid of triangle)
+    const yRes = yTop + (yBotC - yTop) * 2 / 3;
+    const resLen = maxLen * 2 / 3;
     ctx.strokeStyle = '#b8431f'; ctx.fillStyle = '#b8431f'; ctx.lineWidth = 2;
-    if (driving) arrow(ctx, xf - len, yf, xf, yf, 7);   // → into the face (downstream)
-    else         arrow(ctx, xf + len, yf, xf, yf, 7);   // ← (upstream)
-    ctx.font = '8px monospace'; ctx.textAlign = driving ? 'right' : 'left';
-    ctx.fillText(Math.abs(f.F).toFixed(2), driving ? xf - len - 2 : xf + len + 2, yf - 3);
+    if (driving) arrow(ctx, xFace + dir * resLen, yRes, xFace, yRes, 6);
+    else         arrow(ctx, xFace + dir * resLen, yRes, xFace, yRes, 6);
+
+    // Label
+    ctx.font = 'bold 9px monospace';
+    ctx.textAlign = driving ? 'right' : 'left';
+    const labelX = driving ? xFace + dir * maxLen - 2 : xFace + dir * maxLen + 2;
+    ctx.fillText(Math.abs(f.F).toFixed(2) + ' k/ft', labelX, yMidC - 3);
     ctx.textAlign = 'left';
   });
 
@@ -2782,7 +2796,6 @@ function init() {
   // Set default date
   document.getElementById('reportDate').value = new Date().toLocaleDateString('en-US');
   updateCodeDesc();
-  loadSampleGeometry();
   updateAIScanVisibility();
   initLoadCanvasPan();
   renderAddLoadTable();
