@@ -1302,6 +1302,17 @@ function calcLoads(pts, p, caseKey) {
   const hd = Math.max(0, hw - base); // headwater depth above base
   const td = Math.max(0, tw - base); // tailwater depth
 
+  // Polygon winding sign (used in sections 1c and 9)
+  let signedA = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const j = (i + 1) % pts.length;
+    signedA += pts[i].x * pts[j].y - pts[j].x * pts[i].y;
+  }
+  const wsign = signedA >= 0 ? 1 : -1; // +1 = CCW, -1 = CW
+
+  // x-coordinate of the highest concrete node (crest point)
+  const x_crest = pts.reduce((best, n) => n.y > best.y ? n : best, pts[0]).x;
+
   const vForces = [];
   const hForces = [];
 
@@ -1344,7 +1355,12 @@ function calcLoads(pts, p, caseKey) {
       const isNearHoriz = Math.abs(dy) < Math.abs(dx) * 0.30; // shallow ⇒ landing
       const belowHW = ymid < hw;
       const notBase  = ymid > base + 0.5; // exclude the actual base edge
-      if (isNearHoriz && belowHW && notBase && Math.abs(dx) > 1e-6) {
+      // Upward-facing surface: outward normal y-component > 0 (water above, concrete below)
+      const ny_edge = wsign * (-dx) / (Math.hypot(dx, dy) + 1e-9);
+      const isUpwardFacing = ny_edge > 0.5;
+      // Must be upstream of or at the dam crest
+      const isUpstreamOfCrest = xmid <= x_crest + 0.5;
+      if (isNearHoriz && belowHW && notBase && isUpwardFacing && isUpstreamOfCrest && Math.abs(dx) > 1e-6) {
         const depth = hw - ymid;
         const dV = gw * depth * Math.abs(dx) / 1000;
         const arm = toe - xmid;
@@ -1509,51 +1525,39 @@ function calcLoads(pts, p, caseKey) {
   //    base segments contribute no horizontal load and the vertical upstream face is
   //    excluded (already captured by the headwater triangle).
   if (hd > 0) {
-    let signedA = 0;
-    for (let i = 0; i < pts.length; i++) {
-      const j = (i + 1) % pts.length;
-      signedA += pts[i].x * pts[j].y - pts[j].x * pts[i].y;
-    }
-    const wsign = signedA >= 0 ? 1 : -1;            // +1 CCW, -1 CW
-    const damH  = Math.max(...pts.map(n => n.y)) - base;
-    const zoneTol = Math.max(0.5, 0.05 * damH);     // band just above base counted as foundation
-    let baseFaceIdx = 0;
     for (let i = 0; i < pts.length; i++) {
       const a = pts[i], b = pts[(i + 1) % pts.length];
       const dx = b.x - a.x, dy = b.y - a.y;
       if (Math.abs(dy) < 0.05) continue;            // ~horizontal face: no horizontal load
       const L = Math.hypot(dx, dy);
       const ymid = (a.y + b.y) / 2;
+      const xmid = (a.x + b.x) / 2;
       const nx = wsign * dy / L;                    // outward normal x-component
-      const ny = wsign * (-dx) / L;                 // outward normal y-component
-      // Foundation face = clearly below base (a key) OR a downward/outward-facing
-      // step sitting right at base level. This deliberately skips the upstream face
-      // (horizontal normal, well above base).
-      const isFoundation = (ymid < base - 0.01) || (ny < -0.10 && ymid <= base + zoneTol);
-      if (!isFoundation) continue;
-      if (!p.hasUpstreamSilt) continue;             // key load only when upstream soil present
+      // Upstream-facing face: outward normal points upstream (nx < -0.5)
+      // AND not the main heel face (already captured by HW triangle in section 4)
+      if (nx >= -0.5) continue;                     // not predominantly upstream-facing
+      if (xmid <= heel + 0.5) continue;             // this is the main heel face — skip (section 4 covers it)
       if (ymid >= hw) continue;                     // not submerged
-      // Triangular pressure: 0 at key top (base elevation), max = γ_w × depth_below_base at bottom.
-      // Represents incremental pressure due to key projection below grade.
-      const yTop = Math.max(a.y, b.y);
+      // Full hydrostatic pressure (trapezoidal): depth from HW surface to each point on the face.
+      // Clip face to the HW surface at the top.
+      const yTop = Math.min(Math.max(a.y, b.y), hw); // clipped to HW at top
       const yBot = Math.min(a.y, b.y);
-      const dTop = Math.max(0, base - yTop);        // depth below base at key top
-      const dBot = Math.max(0, base - yBot);        // depth below base at key bottom
-      const p_top = gw * dTop / 1000;               // ksf — 0 if top is at base level
-      const p_bot = gw * dBot / 1000;               // ksf at key bottom
+      if (yTop <= yBot) continue;
+      const p_top = gw * Math.max(0, hw - yTop) / 1000; // ksf at face top
+      const p_bot = gw * Math.max(0, hw - yBot) / 1000; // ksf at face bottom
       const p_avg = (p_top + p_bot) / 2;
-      const Fh  = -p_avg * wsign * dy;              // + = driving (downstream)
+      const Fh = p_avg * (yTop - yBot);               // kips/ft, always positive (driving upstream→downstream)
       if (Math.abs(Fh) < 1e-4) continue;
-      const arm = ymid - base;                      // arm relative to base (neg below base)
-      baseFaceIdx++;
+      const arm = ((yTop + yBot) / 2) - base;
       hForces.push({
         label: 'Base Face Hydrostatic',
         F: Fh,
         arm,
         moment: Fh * arm,
-        x: (a.x + b.x) / 2,                          // face mid-x (for diagram)
-        yMid: ymid,
-        note: `key face Δh=${Math.abs(dy).toFixed(2)} ft @ EL ${ymid.toFixed(1)} (${Fh >= 0 ? 'driving' : 'resisting'})`
+        x: xmid,
+        yMid: (yTop + yBot) / 2,
+        yTop, yBot,
+        note: `upstream-facing face @ x=${xmid.toFixed(1)} ft, ${Fh.toFixed(2)} k/ft driving`
       });
     }
   }
@@ -2118,48 +2122,41 @@ function drawLoadDiagram(res) {
     ctx.textAlign = 'left';
   }
 
-  // === BASE FACE HYDROSTATIC arrows (keys / base steps) ===
-  // === SHEAR KEY — triangular horizontal hydrostatic load ===
-  // Draw a filled triangle from 0 at key top to max at key bottom, with arrow at resultant.
+  // === UPSTREAM-FACING FACE HYDROSTATIC (keys, recessed steps) ===
+  // Draw trapezoidal pressure diagram: wider at bottom (higher pressure), narrower at top.
+  // Arrow points from the pressure diagram toward the concrete face (driving = downstream).
   loads.hForces.filter(f => f.label === 'Base Face Hydrostatic' && f.x !== undefined).forEach(f => {
-    const driving = f.F >= 0;
     const xFace = px(f.x);
-    // Recover key top/bottom from yMid and force magnitude
-    // yTop = base (key top is at base elevation), yBot derived from stored arm
-    const yTop = py(p.baseElev);
-    // Estimate key depth from arm: arm = yMid - base (negative for below base), yMid = base + arm
-    const yBot = py(p.baseElev + f.arm * 2); // yBot = base - |arm|*2 roughly... use yMid directly
+    const yTopC = py(f.yTop);   // canvas y of face top (stored)
+    const yBotC = py(f.yBot);   // canvas y of face bottom
     const yMidC = py(f.yMid);
-    // key face spans from base down to 2*(yMid-base) below base
-    const keyDepth = Math.abs(p.baseElev - f.yMid) * 2; // full key height estimate
-    const yBotC = py(p.baseElev - keyDepth);
-    const maxLen = Math.max(Math.abs(keyDepth) * s * 0.8, 20); // arrow length proportional to key depth in px
 
-    // Triangular shape: tip at top (zero), wide at bottom (max)
-    const tipX  = xFace + (driving ? 0 : 0);
-    const dir   = driving ? -1 : 1; // driving = arrow points right (from left), so triangle extends left
-    ctx.fillStyle   = 'rgba(184,67,31,0.25)';
+    // Pressure widths proportional to depth below HW
+    const hw_val = p[LOAD_CASES[res.caseKey].hwKey];
+    const w_top = Math.max(0, (hw_val - f.yTop) * s * 0.7); // px at face top
+    const w_bot = Math.max(0, (hw_val - f.yBot) * s * 0.7); // px at face bottom
+    const maxW  = Math.max(w_bot, 12);
+
+    // Trapezoidal pressure shape to the left of the face (upstream side)
+    ctx.fillStyle   = 'rgba(184,67,31,0.22)';
     ctx.strokeStyle = '#b8431f';
     ctx.lineWidth   = 1.5;
     ctx.beginPath();
-    ctx.moveTo(xFace, yTop);                         // tip at key top (zero force)
-    ctx.lineTo(xFace + dir * maxLen, yBotC);         // base of triangle at key bottom
-    ctx.lineTo(xFace, yBotC);                        // back to face at key bottom
+    ctx.moveTo(xFace, yTopC);
+    ctx.lineTo(xFace - w_top, yTopC);
+    ctx.lineTo(xFace - w_bot, yBotC);
+    ctx.lineTo(xFace, yBotC);
     ctx.closePath();
     ctx.fill(); ctx.stroke();
 
-    // Resultant arrow at 2/3 down from top (centroid of triangle)
-    const yRes = yTop + (yBotC - yTop) * 2 / 3;
-    const resLen = maxLen * 2 / 3;
+    // Resultant arrow at centroid of trapezoid → toward face
+    const w_res = (w_top + 2 * w_bot) / 3; // centroid of trapezoid width
     ctx.strokeStyle = '#b8431f'; ctx.fillStyle = '#b8431f'; ctx.lineWidth = 2;
-    if (driving) arrow(ctx, xFace + dir * resLen, yRes, xFace, yRes, 6);
-    else         arrow(ctx, xFace + dir * resLen, yRes, xFace, yRes, 6);
+    arrow(ctx, xFace - w_res, yMidC, xFace, yMidC, 6);
 
-    // Label
-    ctx.font = 'bold 9px monospace';
-    ctx.textAlign = driving ? 'right' : 'left';
-    const labelX = driving ? xFace + dir * maxLen - 2 : xFace + dir * maxLen + 2;
-    ctx.fillText(Math.abs(f.F).toFixed(2) + ' k/ft', labelX, yMidC - 3);
+    // Force label
+    ctx.font = 'bold 9px monospace'; ctx.textAlign = 'right';
+    ctx.fillText(f.F.toFixed(2) + ' k/ft', xFace - maxW - 3, yMidC - 3);
     ctx.textAlign = 'left';
   });
 
