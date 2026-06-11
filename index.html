@@ -1,1186 +1,2682 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DamStab — Gravity Dam Stability Screening Tool</title>
-    <style>
-        :root {
-            --primary: #1e3a8a;
-            --primary-hover: #1d4ed8;
-            --accent: #0d9488;
-            --bg: #f8fafc;
-            --card-bg: #ffffff;
-            --text: #0f172a;
-            --text-muted: #64748b;
-            --border: #cbd5e1;
-            --success: #16a34a;
-            --danger: #dc2626;
-            --warning: #eab308;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DamStab — Gravity Dam Stability Analysis</title>
+<style>
+/* === RESET & BASE === */
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;font-size:14px;color:#1a1a1a;background:#f0f2f5;min-height:100vh}
+a{color:#1a6cc7}
 
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background-color: var(--bg); color: var(--text); line-height: 1.4; padding: 15px; }
-        
-        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border); padding-bottom: 10px; margin-bottom: 15px; }
-        h1 { color: var(--primary); font-size: 1.6rem; }
-        .disclaimer { font-size: 0.75rem; color: var(--danger); font-style: italic; text-align: right; max-width: 400px; }
+/* === LAYOUT === */
+.app{max-width:1100px;margin:0 auto;padding:1rem}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;padding:0.75rem 1rem;background:#fff;border-radius:10px;border:1px solid #e0e0e0}
+.logo{font-size:18px;font-weight:700;letter-spacing:-0.5px}
+.logo-sub{font-size:11px;color:#888;margin-top:2px}
+.header-btns{display:flex;gap:8px}
 
-        /* Navigation Tabs */
-        .tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 15px; gap: 5px; overflow-x: auto; }
-        .tab-btn { background: #e2e8f0; border: 1px solid var(--border); border-bottom: none; padding: 8px 16px; cursor: pointer; font-weight: 600; font-size: 0.9rem; border-radius: 6px 6px 0 0; color: var(--text-muted); transition: all 0.2s; white-space: nowrap; }
-        .tab-btn:hover { background: #cbd5e1; color: var(--text); }
-        .tab-btn.active { background: var(--card-bg); color: var(--primary); border-bottom: 2px solid var(--card-bg); margin-bottom: -1px; position: relative; z-index: 2; }
-        .tab-content { display: none; background: var(--card-bg); border: 1px solid var(--border); border-radius: 0 0 6px 6px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .tab-content.active { display: block; }
+/* === TABS === */
+.tabs{display:flex;gap:0;border-bottom:2px solid #e0e0e0;margin-bottom:1.25rem;background:#fff;border-radius:10px 10px 0 0;padding:0 0.5rem;overflow-x:auto}
+.tab{padding:10px 18px;cursor:pointer;border:none;border-bottom:3px solid transparent;font-size:13px;font-weight:500;color:#888;background:none;white-space:nowrap;margin-bottom:-2px;transition:color .15s}
+.tab:hover{color:#1a1a1a}
+.tab.active{color:#1a6cc7;border-bottom:3px solid #1a6cc7;font-weight:600}
+.panel{display:none}.panel.active{display:block}
 
-        /* Grid Layouts */
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
-        .grid-mix { display: grid; grid-template-columns: 3fr 2fr; gap: 20px; }
-        @media (max-width: 900px) { .grid-2, .grid-3, .grid-mix { grid-template-columns: 1fr; } }
+/* === CARDS === */
+.card{background:#fff;border:1px solid #e8e8e8;border-radius:10px;padding:1rem 1.25rem;margin-bottom:1rem}
+.card-title{font-size:13px;font-weight:700;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #f0f0f0;color:#444;text-transform:uppercase;letter-spacing:0.5px}
 
-        /* Forms & Inputs */
-        .form-group { margin-bottom: 12px; }
-        label { display: block; font-size: 0.85rem; font-weight: 600; color: #475569; margin-bottom: 4px; }
-        input[type="number"], input[type="text"], input[type="password"], select { width: 100%; padding: 6px 10px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.9rem; }
-        input:disabled, select:disabled { background: #f1f5f9; color: #94a3b8; }
-        .checkbox-group { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
-        .checkbox-group label { margin-bottom: 0; cursor: pointer; }
+/* === FORMS === */
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px}
+.f3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:10px}
+.f4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:10px}
+label{display:block;font-size:11px;color:#777;margin-bottom:3px;font-weight:500}
+input[type=number],input[type=text],input[type=password],select{width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;background:#fff;color:#1a1a1a;font-size:13px;transition:border .15s}
+input:focus,select:focus{outline:none;border-color:#1a6cc7;box-shadow:0 0 0 2px rgba(26,108,199,0.08)}
+input[type=checkbox]{width:auto;margin-right:4px}
+.check-label{display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:4px 0}
+.section-sep{border:none;border-top:1px solid #f0f0f0;margin:12px 0}
 
-        /* Buttons */
-        .btn { background: var(--primary); color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.85rem; transition: background 0.2s; }
-        .btn:hover { background: var(--primary-hover); }
-        .btn:disabled { background: #cbd5e1; cursor: not-allowed; }
-        .btn-accent { background: var(--accent); }
-        .btn-accent:hover { background: #0f766e; }
-        .btn-danger { background: var(--danger); }
+/* === BUTTONS === */
+.btn{padding:7px 14px;border:1px solid #ccc;border-radius:6px;background:#fff;color:#1a1a1a;cursor:pointer;font-size:13px;transition:background .15s,border .15s}
+.btn:hover{background:#f5f5f5}
+.btn-p{background:#1a6cc7;color:#fff;border-color:#1a6cc7}
+.btn-p:hover{background:#1558a8}
+.btn-p:disabled{opacity:0.4;cursor:not-allowed}
+.btn-sm{padding:4px 10px;font-size:12px}
+.btn-full{width:100%}
+.btn-danger{background:#c0392b;color:#fff;border-color:#c0392b}
+.btn-danger:hover{background:#a93226}
+.btn-group{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
 
-        /* Canvas container and setups */
-        .canvas-container { position: relative; background: #f1f5f9; border: 1px solid var(--border); border-radius: 6px; overflow: auto; min-height: 400px; display: flex; justify-content: center; align-items: center; }
-        canvas { display: block; background: transparent; }
-        .canvas-overlay-ui { position: absolute; top: 10px; left: 10px; background: rgba(255,255,255,0.9); padding: 8px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-size: 0.8rem; pointer-events: none; }
+/* === MODE BUTTONS === */
+.mode-btn{padding:6px 12px;border:1px solid #ccc;border-radius:20px;background:#fff;color:#555;cursor:pointer;font-size:12px;transition:all .15s}
+.mode-btn.active{background:#1a6cc7;color:#fff;border-color:#1a6cc7}
 
-        /* UI Cards & Badges */
-        .card-inner { border: 1px solid var(--border); padding: 15px; border-radius: 6px; margin-bottom: 15px; background: #fafafa; }
-        .card-inner h4 { margin-bottom: 10px; color: var(--primary); font-size: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
-        .badge { display: inline-block; padding: 2px 6px; font-size: 0.75rem; font-weight: bold; border-radius: 4px; background: #e2e8f0; margin-left: 5px; }
-        .badge-success { background: #dcfce7; color: #166534; }
-        .badge-error { background: #fee2e2; color: #991b1b; }
+/* === METRICS === */
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1rem}
+.metric{background:#f8f9fb;border:1px solid #e8e8e8;border-radius:8px;padding:12px;text-align:center}
+.mlabel{font-size:11px;color:#888;margin-bottom:4px;font-weight:500}
+.mval{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
 
-        /* Tables */
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; }
-        th, td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }
-        th { background: #f1f5f9; font-weight: 600; color: #334155; }
-        tr:nth-child(even) { background: #f8fafc; }
-        .text-right { text-align: right; }
-        
-        /* Metric Blocks */
-        .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 20px; }
-        .metric-card { background: #f1f5f9; padding: 15px; border-radius: 6px; border-left: 5px solid #cbd5e1; text-align: center; }
-        .metric-card.pass { border-left-color: var(--success); background: #f0fdf4; }
-        .metric-card.fail { border-left-color: var(--danger); background: #fef2f2; }
-        .metric-card .label { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; }
-        .metric-card .val { font-size: 1.6rem; font-weight: 800; margin: 5px 0; }
-        .metric-card .status { font-size: 0.75rem; font-weight: bold; }
+/* === STATUS COLORS === */
+.ok{color:#1a7a3a}.fail{color:#c0392b}.warn{color:#b35c00}.info-c{color:#0c447c}
+.bg-ok{background:#e8f5e9}.bg-fail{background:#fdecea}.bg-warn{background:#fff3e0}.bg-info{background:#e3f2fd}
 
-        /* Sub-case selectors */
-        .case-selector { display: flex; gap: 5px; margin-bottom: 15px; background: #f1f5f9; padding: 5px; border-radius: 6px; }
-        .case-btn { flex: 1; padding: 6px; font-size: 0.85rem; border: none; background: transparent; cursor: pointer; font-weight: 600; border-radius: 4px; color: var(--text-muted); }
-        .case-btn.active { background: white; color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+/* === TABLES === */
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{background:#f5f5f7;padding:7px 10px;text-align:left;font-weight:600;font-size:11px;color:#555;border-bottom:2px solid #e0e0e0}
+td{padding:6px 10px;border-bottom:1px solid #f0f0f0;font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:none}
+.td-mono{font-family:monospace;font-size:12px}
+.tr-sum{font-weight:700;background:#f5f5f7}
 
-        #dropZone { border: 2px dashed #94a3b8; padding: 30px; text-align: center; border-radius: 6px; background: #f8fafc; cursor: pointer; margin-bottom: 15px; }
-        #dropZone:hover { background: #f1f5f9; border-color: var(--primary); }
-    </style>
+/* === BADGES === */
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+.b-ok{background:#e8f5e9;color:#1a7a3a}.b-fail{background:#fdecea;color:#c0392b}
+.b-warn{background:#fff3e0;color:#b35c00}.b-info{background:#e3f2fd;color:#0c447c}
+.b-neutral{background:#f0f0f0;color:#555}
+
+/* === SUB-TABS === */
+.ctabs{display:flex;gap:4px;margin-bottom:1rem;flex-wrap:wrap}
+.ctab{padding:6px 14px;border:1px solid #ccc;border-radius:20px;cursor:pointer;font-size:12px;font-weight:500;background:#fff;color:#555}
+.ctab:hover{background:#f0f0f0}
+.ctab.active{background:#1a6cc7;color:#fff;border-color:#1a6cc7}
+
+/* === NOTES === */
+.note{font-size:11px;color:#888;margin-top:4px;line-height:1.5}
+.sbar{padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:10px;line-height:1.5;border:1px solid transparent}
+.s-ok{background:#e8f5e9;color:#1a7a3a;border-color:#c8e6c9}
+.s-err{background:#fdecea;color:#c0392b;border-color:#ffcdd2}
+.s-info{background:#e3f2fd;color:#0c447c;border-color:#bbdefb}
+.s-warn{background:#fff3e0;color:#b35c00;border-color:#ffe0b2}
+
+/* === CANVAS === */
+canvas{display:block;border:1px solid #e0e0e0;border-radius:8px;background:#fff}
+.canvas-wrap{position:relative;width:100%;margin-bottom:10px;overflow:hidden;border-radius:8px;border:1px solid #e0e0e0}
+.canvas-wrap canvas{width:100%;height:auto;display:block;border:none;border-radius:0}
+
+/* === DROP ZONE === */
+.drop{border:2px dashed #ccc;border-radius:10px;padding:2rem;text-align:center;cursor:pointer;transition:background .15s,border .15s}
+.drop:hover,.drop.drag{background:#f0f4ff;border-color:#1a6cc7}
+
+/* === SPINNER === */
+.spinner{display:inline-block;width:13px;height:13px;border:2px solid #ccc;border-top-color:#1a6cc7;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* === PASS/FAIL BANNER === */
+.result-banner{padding:12px 16px;border-radius:8px;font-size:15px;font-weight:700;text-align:center;margin-bottom:12px}
+.banner-pass{background:#e8f5e9;color:#1a7a3a;border:1px solid #c8e6c9}
+.banner-fail{background:#fdecea;color:#c0392b;border:1px solid #ffcdd2}
+
+/* === COLLAPSIBLE === */
+.collapsible-header{cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;padding:6px 0;color:#444}
+.collapsible-body{display:none;padding-top:8px}
+.collapsible-body.open{display:block}
+
+/* === GEOMETRY PANEL === */
+.geo-layout{display:grid;grid-template-columns:1fr 260px;gap:12px}
+.geo-controls{background:#f8f9fb;border:1px solid #e0e0e0;border-radius:8px;padding:12px}
+.geo-controls .ctrl-label{font-size:11px;color:#777;font-weight:600;margin-bottom:4px;margin-top:10px}
+.geo-controls .ctrl-label:first-child{margin-top:0}
+
+/* === RESPONSIVE === */
+@media(max-width:700px){
+  .f2,.f3,.f4{grid-template-columns:1fr}
+  .metrics{grid-template-columns:1fr 1fr}
+  .geo-layout{grid-template-columns:1fr}
+  .tabs{border-radius:0}
+}
+
+/* === PRINT === */
+@media print{
+  body{background:#fff}
+  .no-print{display:none}
+  .card{border:1px solid #ccc;break-inside:avoid}
+}
+</style>
 </head>
 <body>
+<div class="app">
+<header>
+  <div>
+    <div class="logo">DamStab</div>
+    <div class="logo-sub">Gravity Dam Stability Analysis — FERC / USACE</div>
+    <input type="text" id="projTitle" placeholder="Untitled Project"
+           oninput="syncProjTitle()"
+           style="margin-top:6px;font-size:13px;font-weight:600;padding:4px 8px;border:1px solid #ddd;border-radius:6px;min-width:220px">
+  </div>
+  <div class="header-btns">
+    <input type="file" id="projImport" accept="application/json,.json" style="display:none" onchange="importProject(this.files[0])">
+    <button class="btn" onclick="document.getElementById('projImport').click()" title="Load a saved project (.json)">&#128193; Open</button>
+    <button class="btn" onclick="exportProject()" title="Save this project to a .json file">&#128190; Save</button>
+    <button class="btn" onclick="switchTab('settings',5)">&#9881; Settings</button>
+    <button class="btn btn-p" onclick="runAnalysis()">&#9654; Run Analysis</button>
+  </div>
+</header>
 
-    <header>
-        <div>
-            <h1>DamStab</h1>
-            <p style="font-size:0.85rem; color:var(--text-muted)">Gravity Dam Geometry-Mapping & Stability Screening System</p>
-        </div>
-        <div class="disclaimer">Preliminary screening tool. A licensed professional engineer must verify all final results.</div>
-    </header>
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('geometry',0)">Geometry</button>
+  <button class="tab" onclick="switchTab('input',1)">Input</button>
+  <button class="tab" onclick="switchTab('loads',2)">Loads</button>
+  <button class="tab" onclick="switchTab('results',3)">Results</button>
+  <button class="tab" onclick="switchTab('report',4)">Report</button>
+  <button class="tab" onclick="switchTab('settings',5)">Settings</button>
+</div>
 
-    <div class="tabs">
-        <button class="tab-btn active" onclick="switchTab(event, 'tab-image')">Image Upload & Mapping</button>
-        <button class="tab-btn" onclick="switchTab(event, 'tab-input')">Input Parameters</button>
-        <button class="tab-btn" onclick="switchTab(event, 'tab-forces')">Calculated Forces</button>
-        <button class="tab-btn" onclick="switchTab(event, 'tab-results')">Stability Results</button>
-        <button class="tab-btn" onclick="switchTab(event, 'tab-settings')">AI Vision Settings</button>
+<!-- ===== GEOMETRY TAB ===== -->
+<div id="panel-geometry" class="panel active">
+  <div class="card">
+    <div class="card-title">Image Upload</div>
+    <div class="drop" id="drop" onclick="document.getElementById('fInput').click()"
+         ondragover="event.preventDefault();this.classList.add('drag')"
+         ondragleave="this.classList.remove('drag')"
+         ondrop="onDrop(event)">
+      <input type="file" id="fInput" accept="image/*" style="display:none" onchange="onFile(this.files[0])">
+      <div style="font-size:28px;color:#ccc">&#8679;</div>
+      <div style="margin-top:6px;font-size:13px;color:#888">Click or drag a cross-section image (PNG/JPG)</div>
+      <div class="note">Upload a dam cross-section drawing to use as a tracing guide</div>
     </div>
+  </div>
 
-    <div id="tab-image" class="tab-content active">
-        <div class="grid-mix">
-            <div>
-                <div id="dropZone" onclick="document.getElementById('fileInput').click()">
-                    <p style="font-weight: 600;">Drag & Drop Section Cross-Section Screenshot here, or click to browse</p>
-                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 5px;">Supports PNG, JPG, JPEG</p>
-                    <input type="file" id="fileInput" style="display:none" accept="image/*" onchange="handleFileSelect(event)">
-                </div>
-
-                <div class="canvas-container" id="mappingContainer">
-                    <div class="canvas-overlay-ui" id="canvasUI">
-                        <strong>Interactive Geometry Mapper:</strong><br>
-                        • Drag the 4 colored nodal corner handles to fit your cross section.<br>
-                        • Adjust inputs to change actual target base and crest width dimensions.
-                    </div>
-                    <canvas id="mappingCanvas"></canvas>
-                </div>
-            </div>
-
-            <div>
-                <div class="card-inner">
-                    <h4>Anthropic Vision Parser</h4>
-                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">
-                        Pass your uploaded cross-section asset directly to Claude to extract dimension attributes automatically via optical structural layout inference.
-                    </p>
-                    <button class="btn btn-accent" id="btnVision" onclick="runAIVision()" disabled>Read Section with AI Vision</button>
-                    <div id="visionStatus" style="margin-top:10px; font-size:0.85rem; font-weight:600;"></div>
-                </div>
-
-                <div class="card-inner" id="aiExtractedCard" style="display:none;">
-                    <h4>Extracted Inferred Properties</h4>
-                    <div id="aiBadges" style="font-size:0.85rem; line-height: 1.6;"></div>
-                    <button class="btn" style="margin-top:12px; width:100%;" onclick="applyAIExtractions()">Apply to Input Fields</button>
-                </div>
-            </div>
+  <div class="card">
+    <div class="card-title">Node Editor</div>
+    <div class="geo-layout">
+      <div>
+        <div class="btn-group" style="margin-bottom:8px">
+          <button class="mode-btn active" id="mb-add" onclick="setMode('add')">+ Add Node</button>
+          <button class="mode-btn" id="mb-move" onclick="setMode('move')">&#8662; Move Node</button>
+          <button class="mode-btn" id="mb-del" onclick="setMode('delete')">&#10005; Delete Node</button>
+          <button class="mode-btn" id="mb-scale" onclick="setMode('scale')">&#8596; Set Scale</button>
+          <button class="mode-btn" id="mb-datum" onclick="setMode('datum')">&#8213; Set Datum</button>
+          <button class="btn btn-sm" onclick="clearAllNodes()" style="margin-left:auto">Clear All</button>
         </div>
+        <div id="scaleStatus" class="note" style="margin-bottom:6px">Mode: Add Node — click canvas to place nodes</div>
+        <div class="canvas-wrap" style="cursor:crosshair" id="geoCanvasWrap">
+          <canvas id="geoCanvas" width="700" height="420"></canvas>
+        </div>
+        <div id="aiScanArea" style="margin-top:8px">
+          <button class="btn btn-p" id="aiScanBtn" onclick="doAIScan()" style="display:none">&#10024; AI Scan Image</button>
+          <span id="aiScanMsg" class="note" style="display:none">Add your API key in Settings to enable AI scanning.</span>
+          <span id="aiScanStatus"></span>
+        </div>
+      </div>
+      <div class="geo-controls">
+        <div class="ctrl-label">Scale</div>
+        <label>Scale (ft per pixel)</label>
+        <input type="number" id="scaleVal" value="1" step="0.001" oninput="state.scale=parseFloat(this.value)||1;redrawGeoCanvas()">
+        <label style="margin-top:6px">Unit</label>
+        <select id="unitSel" onchange="state.unit=this.value">
+          <option value="ft">ft</option>
+          <option value="m">m</option>
+        </select>
+        <div class="ctrl-label">Reference</div>
+        <label>Base Elevation (datum)</label>
+        <input type="number" id="geoBaseElev" value="0" oninput="state.baseElev=parseFloat(this.value)||0;syncBaseElev();redrawGeoCanvas()">
+        <hr class="section-sep">
+        <div class="ctrl-label">Info</div>
+        <div class="note" id="geoInfo">Nodes: 0 | Scale: 1 ft/px</div>
+        <hr class="section-sep">
+        <button class="btn btn-full" onclick="previewGeometry()" style="margin-top:6px">Preview Geometry</button>
+        <button class="btn btn-full" onclick="loadSampleGeometry()" style="margin-top:6px">Load Sample Dam</button>
+      </div>
     </div>
+  </div>
 
-    <div id="tab-input" class="tab-content">
-        <div class="grid-3" style="margin-bottom:15px;">
-            <div class="form-group">
-                <label>Design Analytical Standard</label>
-                <select id="designCode" onchange="updateAll()">
-                    <option value="FERC">FERC Chapter 3</option>
-                    <option value="USACE">USACE EM 1110-2-2100</option>
-                    <option value="USBR">USBR Guidelines</option>
-                </select>
-            </div>
-        </div>
-
-        <div class="grid-3">
-            <div class="card-inner">
-                <h4>Dam Structural Profile</h4>
-                <div class="form-group">
-                    <label>Total Dam Height ($H$, ft)</label>
-                    <input type="number" id="inpH" value="60" oninput="updateAll()">
-                </div>
-                <div class="form-group">
-                    <label>Base Structural Width ($B$, ft)</label>
-                    <input type="number" id="inpB" value="45" oninput="updateAll()">
-                </div>
-                <div class="form-group">
-                    <label>Top Crest Width ($a$, ft)</label>
-                    <input type="number" id="inpA" value="6" oninput="updateAll()">
-                </div>
-                <div class="form-group">
-                    <label>Concrete Unit Weight ($\gamma_c$, pcf)</label>
-                    <input type="number" id="inpGammaC" value="150" oninput="updateAll()">
-                </div>
-                <div class="checkbox-group">
-                    <input type="checkbox" id="chkWeightOverride" onchange="toggleWeightOverride()">
-                    <label {{comment}} for="chkWeightOverride">Override calculated weight</label>
-                </div>
-                <div class="form-group" style="margin-top:5px;">
-                    <label>User Weight Override (kips/ft)</label>
-                    <input type="number" id="inpWeightOverride" value="229.5" disabled oninput="updateAll()">
-                </div>
-            </div>
-
-            <div class="card-inner">
-                <h4>Foundation Interaction</h4>
-                <div class="form-group">
-                    <label>Internal Friction Angle ($\phi$, degrees)</label>
-                    <input type="number" id="inpPhi" value="40" oninput="updateAll()">
-                </div>
-                <div class="checkbox-group" style="margin-bottom: 8px;">
-                    <input type="checkbox" id="chkIncludeCohesion" checked onchange="updateAll()">
-                    <label {{comment}} for="chkIncludeCohesion">Include Structural Cohesion</label>
-                </div>
-                <div class="form-group">
-                    <label>Cohesion Force ($c$, ksf)</label>
-                    <input type="number" id="inpCohesion" value="5.0" oninput="updateAll()">
-                </div>
-                <div class="form-group">
-                    <label>Water Volumetric Unit Wt ($\gamma_w$, pcf)</label>
-                    <input type="number" id="inpGammaW" value="62.4" oninput="updateAll()">
-                </div>
-                <div class="checkbox-group" style="margin-top: 15px;">
-                    <input type="checkbox" id="chkDrainPresent" checked onchange="toggleDrainInputs()">
-                    <label {{comment}} for="chkDrainPresent">Internal Pressure Relief Drain Present</label>
-                </div>
-                <div class="form-group" style="margin-top:5px;">
-                    <label>Drain Line distance from Heel (ft)</label>
-                    <input type="number" id="inpDrainDist" value="10" oninput="updateAll()">
-                </div>
-                <div class="form-group">
-                    <label>Drain Efficiency ($E$ [0 - 1])</label>
-                    <input type="number" id="inpDrainEff" value="0.5" step="0.1" max="1" min="0" oninput="updateAll()">
-                </div>
-            </div>
-
-            <div class="card-inner">
-                <h4>Load Case Parameter Controls</h4>
-                <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:8px;">Elevations referenced relative to the baseline foundation elevation datum ($0.0\text{ ft}$).</p>
-                
-                <h5 style="font-size:0.8rem; margin-top:5px; color:var(--primary)">Case 1: Usual (Normal Operating)</h5>
-                <div class="grid-2">
-                    <div class="form-group"><label>HW (ft)</label><input type="number" id="case1_hw" value="58" oninput="updateAll()"></div>
-                    <div class="form-group"><label>TW (ft)</label><input type="number" id="case1_tw" value="5" oninput="updateAll()"></div>
-                </div>
-                
-                <h5 style="font-size:0.8rem; margin-top:5px; color:var(--primary)">Case 2: Unusual (Design Flood)</h5>
-                <div class="grid-2">
-                    <div class="form-group"><label>HW (ft)</label><input type="number" id="case2_hw" value="60" oninput="updateAll()"></div>
-                    <div class="form-group"><label>TW (ft)</label><input type="number" id="case2_tw" value="12" oninput="updateAll()"></div>
-                </div>
-
-                <h5 style="font-size:0.8rem; margin-top:5px; color:var(--primary)">Case 3: Extreme (Seismic Safety)</h5>
-                <div class="grid-3">
-                    <div class="form-group" style="grid-column: span 1;"><label>HW (ft)</label><input type="number" id="case3_hw" value="58" oninput="updateAll()"></div>
-                    <div class="form-group" style="grid-column: span 1;"><label>TW (ft)</label><input type="number" id="case3_tw" value="5" oninput="updateAll()"></div>
-                    <div class="form-group" style="grid-column: span 1;"><label>Acc. $k_h$</label><input type="number" id="case3_kh" value="0.10" step="0.01" oninput="updateAll()"></div>
-                </div>
-            </div>
-        </div>
+  <div class="card" id="nodeTableCard">
+    <div class="card-title">Node Coordinates</div>
+    <div style="overflow-x:auto">
+      <table id="nodeTable">
+        <thead><tr><th>#</th><th>X (ft)</th><th>Y / Elev (ft)</th><th>Action</th></tr></thead>
+        <tbody id="nodeTableBody"></tbody>
+      </table>
     </div>
+    <div class="note" style="margin-top:6px">Click on canvas to add nodes. Edit X/Y values directly. Nodes connect in order to form closed polygon.</div>
+  </div>
 
-    <div id="tab-forces" class="tab-content">
-        <div class="case-selector" id="caseSelectorForces">
-            <button class="case-btn active" onclick="switchLoadCase(1)">Usual Case</button>
-            <button class="case-btn" onclick="switchLoadCase(2)">Unusual Case</button>
-            <button class="case-btn" onclick="switchLoadCase(3)">Extreme Case</button>
-        </div>
+  <div class="card">
+    <div class="card-title">Geometry Preview</div>
+    <canvas id="geoFigCanvas" width="700" height="320" style="width:100%"></canvas>
+    <div class="note" style="margin-top:4px">Cross-section with water levels from Input tab. Click "Preview Geometry" to refresh.</div>
+  </div>
+</div>
 
-        <div class="grid-mix">
-            <div style="background:#f1f5f9; border:1px solid var(--border); border-radius:6px; display:flex; justify-content:center; align-items:center; padding:10px;">
-                <canvas id="forcesCanvas" width="550" height="400"></canvas>
-            </div>
-            <div>
-                <h4>Force Variable Component Matrix</h4>
-                <table id="forcesTable">
-                    <thead>
-                        <tr>
-                            <th>Force Description</th>
-                            <th>$F_x$ (k)</th>
-                            <th>$F_y$ (k)</th>
-                            <th>Arm $x$ (ft)</th>
-                            <th>Arm $y$ (ft)</th>
-                            <th>Notes</th>
-                        </tr>
-                    </thead>
-                    <tbody id="forcesTableBody"></tbody>
-                </table>
-            </div>
-        </div>
+<!-- ===== INPUT TAB ===== -->
+<div id="panel-input" class="panel">
+  <div class="card">
+    <div class="card-title">Elevations</div>
+    <div class="f3">
+      <div><label>Headwater — Normal Pool (ft)</label><input type="number" id="hwNormal" value="80" oninput="onInputChange()"></div>
+      <div><label>Headwater — Flood (ft)</label><input type="number" id="hwFlood" value="90" oninput="onInputChange()"></div>
+      <div><label>Crest Elevation (ft)</label><input type="number" id="crestElev" value="95" oninput="onInputChange()"></div>
     </div>
-
-    <div id="tab-results" class="tab-content">
-        <div class="case-selector" id="caseSelectorResults">
-            <button class="case-btn active" onclick="switchLoadCase(1)">Usual Case</button>
-            <button class="case-btn" onclick="switchLoadCase(2)">Unusual Case</button>
-            <button class="case-btn" onclick="switchLoadCase(3)">Extreme Case</button>
-        </div>
-
-        <div class="metric-grid">
-            <div class="metric-card" id="cardSliding">
-                <div class="label">Sliding Factor of Safety</div>
-                <div class="val" id="resSlidingFS">0.00</div>
-                <div class="status" id="lblSlidingStatus">FAIL</div>
-            </div>
-            <div class="metric-card" id="cardResultant">
-                <div class="label">Resultant Location (From Heel)</div>
-                <div class="val" id="resResultant">0.0 ft</div>
-                <div class="status" id="lblResultantStatus">OUTSIDE MIDDLE THIRD</div>
-            </div>
-            <div class="metric-card" id="cardEccentricity">
-                <div class="label">Eccentricity ($e$)</div>
-                <div class="val" id="resEccentricity">0.0 ft</div>
-                <div class="status" id="lblEccStatus">LIMIT: 0.00</div>
-            </div>
-        </div>
-
-        <div class="grid-2">
-            <div class="card-inner">
-                <h4>Bearing Base Pressure Distribution</h4>
-                <table>
-                    <tr><th>Heel Pressure ($p_{heel}$)</th><td id="resHeelPress" class="val">0.00 ksf</td></tr>
-                    <tr><th>Toe Pressure ($p_{toe}$)</th><td id="resToePress" class="val">0.00 ksf</td></tr>
-                    <tr><th>Base Structural Condition State</th><td id="resTensionWarning" style="font-weight:700;">OK</td></tr>
-                </table>
-
-                <div style="margin-top:15px; padding:12px; background:#fffbeb; border-left:4px solid var(--warning); border-radius:4px;">
-                    <strong>Cracked-Base Static Convergence Model:</strong>
-                    <div class="checkbox-group" style="margin: 8px 0;">
-                        <input type="checkbox" id="chkEnableCracking" onchange="updateAll()">
-                        <label {{comment}} for="chkEnableCracking">Enable Base Cracking Analysis Iteration</label>
-                    </div>
-                    <div class="grid-2" style="margin-top:5px;">
-                        <div>
-                            <label>Active Crack Length (ft)</label>
-                            <input type="number" id="inpActiveCrack" value="0" step="0.5" oninput="updateAll()">
-                        </div>
-                        <div>
-                            <label>Calculated Target Crack (ft)</label>
-                            <div id="calcSuggestedCrack" style="font-weight:700; padding:6px 0; font-size:1.1rem;">0.00</div>
-                        </div>
-                    </div>
-                    <div style="margin-top:10px; display:flex; gap:10px; align-items:center;">
-                        <button class="btn btn-accent" style="padding:6px 12px; font-size:0.8rem;" onclick="iterateCrack()">Use Suggested & Iterate</button>
-                        <span id="crackConvergenceIndicator" style="font-size:0.8rem; font-weight:bold;"></span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card-inner">
-                <h4>Calculation Equations & Outputs Summary</h4>
-                <div style="font-size:0.85rem; background:#f1f5f9; padding:10px; border-radius:4px; margin-bottom:10px; font-family:monospace;">
-                    <strong>Sliding FS Structural Formula:</strong><br>
-                    $FS_{sliding} = \frac{N \cdot \tan(\phi) + c \cdot L_{uncracked}}{\Sigma H}$
-                </div>
-                <div id="calcFormulaBreakdown" style="font-size:0.85rem; line-height:1.6; margin-bottom:15px;"></div>
-                
-                <div id="overturningRatioBox" style="display:none; background:#f1f5f9; padding:10px; border-radius:4px; font-family:monospace;">
-                    <strong>Overturning Moment Ratio ($M_r / M_o$):</strong> <span id="txtOverturningRatio" style="font-weight:700;">0.00</span>
-                </div>
-
-                <button class="btn" style="width:100%; margin-top:15px;" onclick="exportResultsCSV()">Export Multi-Case Structural Report (CSV)</button>
-            </div>
-        </div>
+    <div class="f3">
+      <div><label>Tailwater — Normal (ft)</label><input type="number" id="twNormal" value="5" oninput="onInputChange()"></div>
+      <div><label>Tailwater — Flood (ft)</label><input type="number" id="twFlood" value="15" oninput="onInputChange()"></div>
+      <div><label>Base Elevation / Datum (ft)</label><input type="number" id="baseElev" value="0" oninput="syncBaseElevFromInput();onInputChange()"></div>
     </div>
+  </div>
 
-    <div id="tab-settings" class="tab-content">
-        <div class="card-inner" style="max-width: 600px;">
-            <h4>Claude API Routing Configuration</h4>
-            <div class="form-group">
-                <label>Anthropic User Key String</label>
-                <input type="password" id="cfgApiKey" placeholder="sk-ant-...">
-            </div>
-            <div class="form-group">
-                <label>Vision Processing Engine Model Target</label>
-                <select id="cfgModel">
-                    <option value="claude-3-5-sonnet-20241022">claude-3-5-sonnet-20241022 (Default)</option>
-                    <option value="claude-3-opus-20240229">claude-3-opus-20240229</option>
-                    <option value="claude-3-5-haiku-20241022">claude-3-5-haiku-20241022</option>
-                </select>
-            </div>
-            <div style="display:flex; gap:10px; margin-top:15px;">
-                <button class="btn" onclick="saveSettings()">Save Key Settings</button>
-                <button class="btn btn-danger" onclick="clearSettings()">Clear Key Settings</button>
-            </div>
-            <p style="font-size:0.75rem; color:var(--text-muted); margin-top:15px;">
-                <strong>Privacy Protocol Verification Note:</strong> API credential tokens are cached natively directly within session scope runtime state memory. Network requests communicate directly point-to-point to <code>api.anthropic.com</code> from your client browser thread ecosystem.
-            </p>
-        </div>
+  <div class="card">
+    <div class="card-title">Materials</div>
+    <div class="f3">
+      <div><label>Concrete Unit Weight (pcf)</label><input type="number" id="concUW" value="150" oninput="onInputChange()"></div>
+      <div><label>Water Unit Weight (pcf)</label><input type="number" id="waterUW" value="62.4" oninput="onInputChange()"></div>
+      <div></div>
     </div>
+  </div>
 
-    <script>
-        // --- Core Application Memory State ---
-        let currentLoadCase = 1; 
-        let baseImg = null;
-        
-        // Interactive handle state variables for polygon geometric alignment overlay
-        let nodes = [
-            { x: 50,  y: 350, label: "Heel (Upstream Base)" },
-            { x: 100, y: 50,  label: "Crest Face Start" },
-            { x: 150, y: 50,  label: "Crest Face End" },
-            { x: 350, y: 350, label: "Toe (Downstream Base)" }
-        ];
-        let draggedNodeIndex = -1;
+  <div class="card">
+    <div class="card-title">Geotechnical — Foundation</div>
+    <div class="f3">
+      <div><label>Friction Angle &phi; (degrees)</label><input type="number" id="phi" value="35" oninput="onInputChange()"></div>
+      <div><label>Cohesion c (psf)</label><input type="number" id="cohesion" value="0" oninput="onInputChange()"></div>
+      <div style="display:flex;align-items:flex-end;padding-bottom:2px">
+        <label class="check-label"><input type="checkbox" id="useCohesion"> Use cohesion in sliding</label>
+      </div>
+    </div>
+    <div class="f2">
+      <div>
+        <label>Foundation Type</label>
+        <select id="foundationType">
+          <option value="rock">Rock</option>
+          <option value="soil">Soil</option>
+        </select>
+      </div>
+    </div>
+  </div>
 
-        let aiInferredData = null;
+  <div class="card">
+    <div class="card-title">Drain</div>
+    <div class="f3">
+      <div style="display:flex;align-items:flex-end;padding-bottom:4px">
+        <label class="check-label"><input type="checkbox" id="hasDrain" checked onchange="onInputChange()"> Drain present</label>
+      </div>
+      <div><label>Drain Distance from Heel (ft)</label><input type="number" id="drainDist" value="10" oninput="onInputChange()"></div>
+      <div><label>Drain Efficiency (0–1)</label><input type="number" id="drainEff" value="0.67" step="0.01" oninput="onInputChange()"></div>
+    </div>
+    <div class="note">Per USACE EM 1110-2-2100: drain efficiency reduces uplift at drain location. Default 0.67 (67%).</div>
+  </div>
 
-        // Launch Setup Hook
-        window.onload = function() {
-            loadSettings();
-            initMappingCanvas();
-            updateAll();
-        };
+  <div class="card">
+    <div class="card-title">Silt / Soil Loads</div>
+    <div style="margin-bottom:10px">
+      <label class="check-label"><input type="checkbox" id="hasUpstreamSilt" onchange="toggleSiltUI()"> Upstream Silt</label>
+    </div>
+    <div id="upstreamSiltFields" style="display:none">
+      <div class="f3">
+        <div><label>Upstream Silt Elevation (ft)</label><input type="number" id="siltUpElev" value="20" oninput="onInputChange()"></div>
+        <div><label>Silt Submerged Unit Weight (pcf)</label><input type="number" id="siltUpUW" value="55" oninput="onInputChange()"></div>
+        <div><label>Silt Friction Angle (deg)</label><input type="number" id="siltUpPhi" value="30" oninput="onInputChange()"></div>
+      </div>
+    </div>
+    <hr class="section-sep">
+    <div style="margin-bottom:10px">
+      <label class="check-label"><input type="checkbox" id="hasDownstreamSoil" onchange="toggleSiltUI()"> Downstream Soil</label>
+    </div>
+    <div id="downstreamSoilFields" style="display:none">
+      <div class="f3">
+        <div><label>Downstream Soil Elevation (ft)</label><input type="number" id="siltDnElev" value="10" oninput="onInputChange()"></div>
+        <div><label>Soil Submerged Unit Weight (pcf)</label><input type="number" id="siltDnUW" value="55" oninput="onInputChange()"></div>
+        <div><label>Soil Friction Angle (deg)</label><input type="number" id="siltDnPhi" value="30" oninput="onInputChange()"></div>
+      </div>
+    </div>
+  </div>
 
-        // --- Navigation Controller ---
-        function switchTab(evt, tabId) {
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            evt.currentTarget.classList.add('active');
-            document.getElementById(tabId).classList.add('active');
-            if(tabId === 'tab-forces' || tabId === 'tab-image') {
-                setTimeout(renderCanvases, 50);
-            }
+  <div class="card">
+    <div class="card-title">Seismic</div>
+    <div class="f3">
+      <div><label>Horizontal Seismic Coeff k&#x2095;</label><input type="number" id="kh" value="0.10" step="0.01" oninput="onInputChange()"></div>
+      <div><label>Vertical Seismic Coeff k&#x1D65; (optional)</label><input type="number" id="kv" value="0" step="0.01" oninput="onInputChange()"></div>
+      <div style="display:flex;align-items:flex-end;padding-bottom:4px">
+        <label class="check-label"><input type="checkbox" id="useWestergaard" checked> Include Westergaard Hydrodynamic</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Concrete Weight &amp; Centroid</div>
+    <div class="note" style="margin-bottom:8px">Calculated from the geometry polygon. Tick "Override" to enter values manually (e.g. to account for galleries or voids).</div>
+    <div class="f3">
+      <div><label>Calculated Weight W (k/ft)</label><input type="number" id="calcWeightDisp" value="0" readonly style="background:#f5f5f7"></div>
+      <div><label>Centroid X̄ from heel (ft)</label><input type="number" id="calcCgXDisp" value="0" readonly style="background:#f5f5f7"></div>
+      <div><label>Centroid Ȳ above base (ft)</label><input type="number" id="calcCgYDisp" value="0" readonly style="background:#f5f5f7"></div>
+    </div>
+    <label class="check-label" style="margin-top:4px"><input type="checkbox" id="overrideConc" onchange="toggleConcOverride()"> Override calculated weight / centroid</label>
+    <div id="concOverrideFields" class="f3" style="display:none;margin-top:8px">
+      <div><label>Manual Weight W (k/ft)</label><input type="number" id="manWeight" value="0" step="0.1" oninput="onInputChange()"></div>
+      <div><label>Manual X̄ from heel (ft)</label><input type="number" id="manCgX" value="0" step="0.1" oninput="onInputChange()"></div>
+      <div><label>Manual Ȳ above base (ft)</label><input type="number" id="manCgY" value="0" step="0.1" oninput="onInputChange()"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Additional Vertical Loads</div>
+    <div class="note" style="margin-bottom:8px">Point loads such as bridge dead load, gate weight, pier, hoist, etc. Positive = downward. X measured from heel (upstream base).</div>
+    <div style="overflow-x:auto">
+      <table id="addLoadTable">
+        <thead><tr><th>Label</th><th>Load (k/ft)</th><th>X from heel (ft)</th><th></th></tr></thead>
+        <tbody id="addLoadBody"></tbody>
+      </table>
+    </div>
+    <button class="btn btn-sm" onclick="addVerticalLoadRow()" style="margin-top:8px">+ Add Vertical Load</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Ice Load</div>
+    <div class="f3">
+      <div style="display:flex;align-items:flex-end;padding-bottom:4px">
+        <label class="check-label"><input type="checkbox" id="hasIce" onchange="onInputChange()"> Include ice load</label>
+      </div>
+      <div><label>Ice Thrust (k/ft)</label><input type="number" id="iceLoad" value="5" step="0.5" oninput="onInputChange()"></div>
+      <div><label>Ice Elevation (ft, blank = HW)</label><input type="number" id="iceElev" value="" step="1" oninput="onInputChange()"></div>
+    </div>
+    <div class="note">Horizontal thrust applied at the ice/water surface (USACE EM 1110-2-2100 typical 5–10 k/ft). Acts in the driving (downstream) direction.</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Design Code</div>
+    <div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:8px">
+      <label class="check-label"><input type="radio" name="designCode" value="ferc" checked> FERC Chapter 3</label>
+      <label class="check-label"><input type="radio" name="designCode" value="usace"> USACE EM 1110-2-2100</label>
+    </div>
+    <div id="codeDesc" class="note"></div>
+  </div>
+
+  <div id="inputValidationMsg"></div>
+  <button class="btn btn-p btn-full" onclick="runAnalysis();switchTab('results',3)" style="font-size:15px;padding:12px">
+    &#9654; Run Analysis
+  </button>
+</div>
+
+<!-- ===== LOADS TAB ===== -->
+<div id="panel-loads" class="panel">
+  <div class="ctabs" id="loadCaseTabs"></div>
+  <div id="loadCanvasArea" class="card">
+    <div class="card-title">Load Diagram</div>
+    <canvas id="loadCanvas" width="700" height="420" style="width:100%;cursor:grab"></canvas>
+    <div style="margin-top:4px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-sm" id="panBtn" onclick="togglePan()" title="Pan the diagram">&#9995; Pan</button>
+      <button class="btn btn-sm" onclick="resetPan()" title="Reset view">&#8635; Reset</button>
+      <span class="note">W=weight (green&#8595;) &nbsp;|&nbsp; HW/TW=water pressure (blue triangles) &nbsp;|&nbsp; U=uplift (red&#8593;) &nbsp;|&nbsp; EQ=seismic (purple)</span>
+    </div>
+  </div>
+  <div class="card" id="loadTableArea">
+    <div class="card-title">Force Summary</div>
+    <div id="loadTableContent"></div>
+  </div>
+</div>
+
+<!-- ===== RESULTS TAB ===== -->
+<div id="panel-results" class="panel">
+  <div class="ctabs" id="resultCaseTabs"></div>
+  <div id="resultArea"></div>
+  <div style="margin-top:1rem;display:flex;gap:8px" class="no-print">
+    <button class="btn" onclick="exportCSV()">&#8659; Export CSV</button>
+  </div>
+</div>
+
+<!-- ===== REPORT TAB ===== -->
+<div id="panel-report" class="panel">
+  <div class="card">
+    <div class="card-title">Project Information</div>
+    <div class="f2">
+      <div><label>Project Name</label><input type="text" id="projName" value="Dam Stability Analysis" placeholder="Project name"></div>
+      <div><label>Engineer Name</label><input type="text" id="engName" value="" placeholder="Responsible engineer"></div>
+    </div>
+    <div class="f2">
+      <div><label>Date</label><input type="text" id="reportDate" value=""></div>
+      <div><label>Project Number</label><input type="text" id="projNum" value="" placeholder="Optional"></div>
+    </div>
+    <div><label>Notes / Assumptions</label><textarea id="reportNotes" rows="3" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px" placeholder="List assumptions, simplifications, or special conditions..."></textarea></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Generate Report</div>
+    <div class="note" style="margin-bottom:10px">Generates a print-ready report in a new window. Run analysis first.</div>
+    <button class="btn btn-p" onclick="generateReport()">&#128196; Generate &amp; Open Report</button>
+  </div>
+</div>
+
+<!-- ===== SETTINGS TAB ===== -->
+<div id="panel-settings" class="panel">
+  <div class="card">
+    <div class="card-title">Anthropic API Key</div>
+    <p class="note" style="margin-bottom:12px">Required for AI Scan feature. Stored in browser memory this session only — sent directly to api.anthropic.com, never anywhere else. Get a key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>.</p>
+    <div class="f2">
+      <div><label>API Key</label><input type="password" id="keyIn" placeholder="sk-ant-..."></div>
+      <div>
+        <label>Model</label>
+        <select id="modelSel">
+          <option value="claude-sonnet-4-6">claude-sonnet-4-6 — Balanced (recommended)</option>
+          <option value="claude-opus-4-5">claude-opus-4-5 — Most capable</option>
+          <option value="claude-haiku-4-5">claude-haiku-4-5 — Fastest / cheapest</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn btn-p" onclick="saveKey()">Save Key</button>
+      <button class="btn" onclick="clearKey()">Clear</button>
+    </div>
+    <div id="kstat" class="note" style="margin-top:8px"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">About</div>
+    <div class="note" style="line-height:1.8">
+      DamStab performs preliminary stability screening of concrete gravity dams per FERC Chapter 3 and USACE EM 1110-2-2100.<br>
+      Checks include: sliding FS, overturning (Mr/Mo), eccentricity, resultant location, and base pressures.<br>
+      Load cases: Usual (normal pool), Flood, Seismic, Extreme (seismic + flood).<br>
+      <strong>This tool is for screening only. A licensed professional engineer must verify all results.</strong>
+    </div>
+  </div>
+</div>
+</div><!-- .app -->
+
+<script>
+// === STATE ===
+const state = {
+  apiKey: '',
+  apiModel: 'claude-sonnet-4-6',
+  imgData: null,
+  nodes: [],          // {x: px, y: px} canvas pixel coords
+  realNodes: [],      // {x: ft, y: ft} real-world coords
+  scale: 1,           // ft per pixel
+  unit: 'ft',
+  baseElev: 0,
+  mode: 'add',        // add | move | delete | scale | datum
+  scalePoints: [],    // for set-scale mode
+  dragging: null,     // index of node being dragged
+  datumPy: null,      // canvas pixel y of datum line (null = use bottom of canvas)
+  results: [],
+  analysisRan: false,
+  // Load canvas pan
+  panMode: false,
+  panOffset: { x: 0, y: 0 },
+  panDragging: false,
+  panStart: { x: 0, y: 0 }
+};
+
+// === TAB SWITCHING ===
+function switchTab(name, idx) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  document.querySelectorAll('.tab')[idx].classList.add('active');
+  if (name === 'geometry') { redrawGeoCanvas(); updateGeoFig(); }
+  if (name === 'loads' && state.analysisRan) showLoadCase(0);
+  if (name === 'results' && state.analysisRan) showResultCase(0);
+}
+
+// === SETTINGS ===
+function saveKey() {
+  state.apiKey = document.getElementById('keyIn').value.trim();
+  state.apiModel = document.getElementById('modelSel').value;
+  const s = document.getElementById('kstat');
+  s.textContent = state.apiKey ? 'Key saved for this session.' : 'No key entered.';
+  s.style.color = state.apiKey ? '#1a7a3a' : '#888';
+  updateAIScanVisibility();
+}
+function clearKey() {
+  state.apiKey = '';
+  document.getElementById('keyIn').value = '';
+  document.getElementById('kstat').textContent = 'Cleared.';
+  updateAIScanVisibility();
+}
+function updateAIScanVisibility() {
+  const btn = document.getElementById('aiScanBtn');
+  const msg = document.getElementById('aiScanMsg');
+  if (state.apiKey) {
+    btn.style.display = state.imgData ? 'inline-block' : 'none';
+    msg.style.display = 'none';
+  } else {
+    btn.style.display = 'none';
+    msg.style.display = state.imgData ? 'inline-block' : 'none';
+  }
+}
+
+// === FILE UPLOAD ===
+function onFile(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  const r = new FileReader();
+  r.onload = e => {
+    state.imgData = e.target.result;
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.getElementById('geoCanvas');
+      const wrap = document.getElementById('geoCanvasWrap');
+      const W = wrap.offsetWidth || 700;
+      const scale = Math.min(W / img.width, 500 / img.height);
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      state._bgImg = img;
+      state._bgScale = scale;
+      redrawGeoCanvas();
+      updateAIScanVisibility();
+    };
+    img.src = state.imgData;
+  };
+  r.readAsDataURL(file);
+}
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById('drop').classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f) onFile(f);
+}
+
+// === AI SCAN ===
+async function doAIScan() {
+  if (!state.apiKey || !state.imgData) return;
+  const btn = document.getElementById('aiScanBtn');
+  const statusEl = document.getElementById('aiScanStatus');
+  btn.disabled = true;
+  statusEl.innerHTML = ' <span class="spinner"></span> Scanning with AI...';
+  const b64 = state.imgData.split(',')[1];
+  const mt = state.imgData.split(';')[0].split(':')[1] || 'image/jpeg';
+  const canvas = document.getElementById('geoCanvas');
+  const W = canvas.width, H = canvas.height;
+  const prompt = `You are analyzing an engineering cross-section drawing of a concrete gravity dam.
+Identify the outline of the dam cross-section and return up to 50 nodes as normalized coordinates (0 to 1) relative to the image bounding box.
+x=0 is left edge, x=1 is right edge. y=0 is TOP of image, y=1 is BOTTOM of image.
+Start at the heel (upstream base), go counterclockwise around the dam outline back to the starting point.
+Return ONLY valid JSON, no prose, no markdown fences:
+{"nodes":[{"x":0.1,"y":0.9},...],"scale_hint":"describe any scale bars or dimension labels you see","notes":"any assumptions made"}`;
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': state.apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: state.apiModel,
+        max_tokens: 1500,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: mt, data: b64 } },
+            { type: 'text', text: prompt }
+          ]
+        }]
+      })
+    });
+    if (!res.ok) { const err = await res.json(); throw new Error(err.error?.message || res.status); }
+    const data = await res.json();
+    let raw = data.content.map(c => c.type === 'text' ? c.text : '').join('').trim();
+    raw = raw.replace(/^```json/, '').replace(/^```/, '').replace(/```$/, '').trim();
+    const parsed = JSON.parse(raw);
+    if (parsed.nodes && parsed.nodes.length >= 3) {
+      state.nodes = parsed.nodes.map(n => ({
+        x: n.x * W,
+        y: n.y * H
+      }));
+      computeRealNodes();
+      redrawGeoCanvas();
+      updateNodeTable();
+      statusEl.innerHTML = ` <span class="badge b-ok">Scanned ${parsed.nodes.length} nodes</span>`;
+      if (parsed.notes) statusEl.innerHTML += ` <span class="note">${parsed.notes}</span>`;
+    } else {
+      statusEl.innerHTML = ' <span class="badge b-warn">No nodes found. Try a clearer image.</span>';
+    }
+  } catch (err) {
+    statusEl.innerHTML = ` <span class="badge b-fail">Error: ${err.message}</span>`;
+  }
+  btn.disabled = false;
+}
+
+// === GEO CANVAS INTERACTION ===
+const geoCanvas = document.getElementById('geoCanvas');
+
+function setMode(m) {
+  state.mode = m;
+  state.scalePoints = [];
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('mb-' + m)?.classList.add('active');
+  const msgs = {
+    add: 'Mode: Add Node — click canvas to place nodes',
+    move: 'Mode: Move Node — click and drag a node',
+    delete: 'Mode: Delete Node — click a node to remove it',
+    scale: 'Mode: Set Scale — click two points, then enter real distance',
+    datum: 'Mode: Set Datum — click anywhere to place the base elevation line (drag to reposition)'
+  };
+  document.getElementById('scaleStatus').textContent = msgs[m] || '';
+  geoCanvas.style.cursor = m === 'move' ? 'grab' : 'crosshair';
+}
+
+function canvasXY(e) {
+  const rect = geoCanvas.getBoundingClientRect();
+  const scaleX = geoCanvas.width / rect.width;
+  const scaleY = geoCanvas.height / rect.height;
+  return {
+    x: (e.clientX - rect.left) * scaleX,
+    y: (e.clientY - rect.top) * scaleY
+  };
+}
+
+function nearestNode(x, y, threshold = 15) {
+  let best = -1, bestD = Infinity;
+  state.nodes.forEach((n, i) => {
+    const d = Math.hypot(n.x - x, n.y - y);
+    if (d < threshold && d < bestD) { bestD = d; best = i; }
+  });
+  return best;
+}
+
+geoCanvas.addEventListener('mousedown', e => {
+  const { x, y } = canvasXY(e);
+  // Allow dragging datum line from any mode if click is within 8px of it
+  const dpy = state.datumPy !== null ? state.datumPy : geoCanvas.height;
+  if (Math.abs(y - dpy) <= 8 && state.mode !== 'datum') {
+    state.dragging = 'datum';
+    return;
+  }
+  if (state.mode === 'add') {
+    if (state.nodes.length >= 50) { alert('Maximum 50 nodes reached.'); return; }
+    state.nodes.push({ x, y });
+    computeRealNodes();
+    redrawGeoCanvas();
+    updateNodeTable();
+  } else if (state.mode === 'move') {
+    const i = nearestNode(x, y);
+    if (i >= 0) { state.dragging = i; geoCanvas.style.cursor = 'grabbing'; }
+  } else if (state.mode === 'delete') {
+    const i = nearestNode(x, y);
+    if (i >= 0) {
+      state.nodes.splice(i, 1);
+      computeRealNodes();
+      redrawGeoCanvas();
+      updateNodeTable();
+    }
+  } else if (state.mode === 'datum') {
+    state.datumPy = y;
+    state.dragging = 'datum';
+    computeRealNodes();
+    redrawGeoCanvas();
+    updateNodeTable();
+    document.getElementById('geoBaseElev').value = state.baseElev.toFixed(2);
+    document.getElementById('baseElev').value = state.baseElev.toFixed(2);
+  } else if (state.mode === 'scale') {
+    state.scalePoints.push({ x, y });
+    redrawGeoCanvas();
+    if (state.scalePoints.length === 2) {
+      const dist = prompt('Enter the real-world distance between the two points (in ' + state.unit + '):', '');
+      const d = parseFloat(dist);
+      if (d > 0) {
+        const pxDist = Math.hypot(
+          state.scalePoints[1].x - state.scalePoints[0].x,
+          state.scalePoints[1].y - state.scalePoints[0].y
+        );
+        state.scale = d / pxDist;
+        document.getElementById('scaleVal').value = state.scale.toFixed(4);
+        computeRealNodes();
+        updateNodeTable();
+        document.getElementById('scaleStatus').textContent = `Scale set: ${state.scale.toFixed(4)} ${state.unit}/px`;
+      }
+      state.scalePoints = [];
+      redrawGeoCanvas();
+    }
+  }
+});
+
+geoCanvas.addEventListener('mousemove', e => {
+  const { x, y } = canvasXY(e);
+  if (state.mode === 'move' && state.dragging !== null && state.dragging !== 'datum') {
+    state.nodes[state.dragging] = { x, y };
+    computeRealNodes();
+    redrawGeoCanvas();
+    updateNodeTable();
+  } else if (state.dragging === 'datum') {
+    state.datumPy = y;
+    computeRealNodes();
+    redrawGeoCanvas();
+    updateNodeTable();
+    document.getElementById('geoBaseElev').value = state.baseElev.toFixed(2);
+    document.getElementById('baseElev').value = state.baseElev.toFixed(2);
+  }
+});
+
+geoCanvas.addEventListener('mouseup', () => {
+  state.dragging = null;
+  if (state.mode === 'move') geoCanvas.style.cursor = 'grab';
+});
+
+geoCanvas.addEventListener('mouseleave', () => { state.dragging = null; });
+
+function clearAllNodes() {
+  if (!confirm('Clear all nodes?')) return;
+  state.nodes = [];
+  state.realNodes = [];
+  redrawGeoCanvas();
+  updateNodeTable();
+}
+
+// === REAL-WORLD COORDINATE COMPUTATION ===
+function computeRealNodes() {
+  const canvas = document.getElementById('geoCanvas');
+  const H = canvas.height;
+  // datum pixel y: where real baseElev lives on canvas (defaults to bottom)
+  const datumPy = state.datumPy !== null ? state.datumPy : H;
+  state.realNodes = state.nodes.map(n => ({
+    x: n.x * state.scale,
+    y: state.baseElev + (datumPy - n.y) * state.scale
+  }));
+  updateGeoInfo();
+}
+
+function updateGeoInfo() {
+  document.getElementById('geoInfo').textContent =
+    `Nodes: ${state.nodes.length} | Scale: ${state.scale.toFixed(4)} ${state.unit}/px`;
+}
+
+// === DRAW GEO CANVAS ===
+function redrawGeoCanvas() {
+  const canvas = document.getElementById('geoCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  // Background image
+  if (state._bgImg) {
+    ctx.globalAlpha = 0.45;
+    ctx.drawImage(state._bgImg, 0, 0, W, H);
+    ctx.globalAlpha = 1;
+  } else {
+    ctx.fillStyle = '#f8f9fb';
+    ctx.fillRect(0, 0, W, H);
+    if (state.nodes.length === 0) {
+      ctx.fillStyle = '#bbb';
+      ctx.font = '14px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText('Upload an image and click to place nodes, or use AI Scan', W / 2, H / 2);
+      ctx.textAlign = 'left';
+    }
+  }
+
+  // Scale points
+  state.scalePoints.forEach((p, i) => {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+    ctx.fillStyle = '#e67e00';
+    ctx.fill();
+    ctx.fillStyle = '#e67e00';
+    ctx.font = 'bold 11px monospace';
+    ctx.fillText('P' + (i + 1), p.x + 8, p.y - 4);
+  });
+  if (state.scalePoints.length === 2) {
+    ctx.beginPath();
+    ctx.moveTo(state.scalePoints[0].x, state.scalePoints[0].y);
+    ctx.lineTo(state.scalePoints[1].x, state.scalePoints[1].y);
+    ctx.strokeStyle = '#e67e00';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Datum line
+  {
+    const datumPy = state.datumPy !== null ? state.datumPy : H;
+    ctx.save();
+    ctx.strokeStyle = '#e67e00';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 5]);
+    ctx.beginPath();
+    ctx.moveTo(0, datumPy);
+    ctx.lineTo(W, datumPy);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#e67e00';
+    ctx.font = 'bold 11px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('Base Elev = ' + state.baseElev.toFixed(1) + ' ' + state.unit, 6, datumPy - 4);
+    // Drag handle
+    ctx.beginPath();
+    ctx.arc(W - 16, datumPy, 7, 0, Math.PI * 2);
+    ctx.fillStyle = '#e67e00';
+    ctx.fill();
+    ctx.restore();
+  }
+
+  if (state.nodes.length === 0) return;
+
+  // Polygon
+  ctx.beginPath();
+  state.nodes.forEach((n, i) => i === 0 ? ctx.moveTo(n.x, n.y) : ctx.lineTo(n.x, n.y));
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(100,140,200,0.18)';
+  ctx.fill();
+  ctx.strokeStyle = '#1a6cc7';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Nodes
+  state.nodes.forEach((n, i) => {
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, 6, 0, Math.PI * 2);
+    ctx.fillStyle = '#1a6cc7';
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 9px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(i + 1, n.x, n.y);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+  });
+}
+
+// === NODE TABLE ===
+function updateNodeTable() {
+  const tbody = document.getElementById('nodeTableBody');
+  tbody.innerHTML = state.realNodes.map((n, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td><input type="number" value="${n.x.toFixed(2)}" style="width:80px;padding:3px 6px;font-size:12px" onchange="updateNodeFromTable(${i},'x',parseFloat(this.value))"></td>
+      <td><input type="number" value="${n.y.toFixed(2)}" style="width:80px;padding:3px 6px;font-size:12px" onchange="updateNodeFromTable(${i},'y',parseFloat(this.value))"></td>
+      <td><button class="btn btn-sm btn-danger" onclick="deleteNodeIdx(${i})">&#10005;</button></td>
+    </tr>`).join('');
+}
+
+function updateNodeFromTable(i, axis, val) {
+  if (!isFinite(val)) return;
+  const canvas = document.getElementById('geoCanvas');
+  const H = canvas.height;
+  const datumPy = state.datumPy !== null ? state.datumPy : H;
+  if (axis === 'x') {
+    state.realNodes[i].x = val;
+    state.nodes[i].x = val / state.scale;
+  } else {
+    state.realNodes[i].y = val;
+    state.nodes[i].y = datumPy - (val - state.baseElev) / state.scale;
+  }
+  redrawGeoCanvas();
+}
+
+function deleteNodeIdx(i) {
+  state.nodes.splice(i, 1);
+  computeRealNodes();
+  redrawGeoCanvas();
+  updateNodeTable();
+}
+
+// === SYNC BASE ELEV ===
+function syncBaseElev() {
+  document.getElementById('baseElev').value = state.baseElev;
+  computeRealNodes();
+  updateNodeTable();
+}
+function syncBaseElevFromInput() {
+  state.baseElev = parseFloat(document.getElementById('baseElev').value) || 0;
+  document.getElementById('geoBaseElev').value = state.baseElev;
+  computeRealNodes();
+  updateNodeTable();
+}
+
+// === SAMPLE GEOMETRY ===
+function loadSampleGeometry() {
+  // Trapezoidal dam: base 60ft, height 80ft, upstream face vertical, downstream sloped
+  // In canvas coords: canvas 700x420, scale=1 ft/px after this
+  const canvas = document.getElementById('geoCanvas');
+  canvas.width = 700;
+  canvas.height = 420;
+  state.scale = 0.15; // 0.15 ft/px → canvas 700px = 105ft wide
+  state.baseElev = 0;
+  document.getElementById('scaleVal').value = state.scale;
+  document.getElementById('geoBaseElev').value = 0;
+  state._bgImg = null;
+  // Dam: heel at x=100px, toe at x=500px (60ft), height=80ft → 533px
+  // We'll fit: heel(100,380), toe(500,380), crest-toe(500-?,380-533)... let's just do real coords and convert
+  // Real: heel(0,0), toe(60,0), crest-upstream-top(6,80), upstream-top-heel(0,80)?
+  // Actually standard trapezoidal: heel(0,0), toe(60,0), crest-downstream(54,80), crest-upstream(0,80)
+  const H_canvas = canvas.height;
+  function px(rx, ry) {
+    return { x: 50 + rx / state.scale, y: H_canvas - 10 - ry / state.scale };
+  }
+  const pts = [
+    px(0, 0),   // heel base
+    px(60, 0),  // toe base
+    px(54, 80), // crest downstream
+    px(0, 80)   // crest upstream / heel top
+  ];
+  state.nodes = pts;
+  // Set datum line to the base node pixel y
+  state.datumPy = H_canvas - 10;
+  computeRealNodes();
+  redrawGeoCanvas();
+  updateNodeTable();
+  // Sync elevations
+  document.getElementById('hwNormal').value = 75;
+  document.getElementById('hwFlood').value = 82;
+  document.getElementById('twNormal').value = 5;
+  document.getElementById('twFlood').value = 15;
+  document.getElementById('crestElev').value = 80;
+  document.getElementById('baseElev').value = 0;
+}
+
+// === GEOMETRY FIGURE PREVIEW ===
+function previewGeometry() {
+  updateGeoFig();
+  document.getElementById('geoFigCanvas').scrollIntoView({ behavior: 'smooth' });
+}
+
+function updateGeoFig() {
+  const canvas = document.getElementById('geoFigCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+  const pts = state.realNodes;
+
+  if (pts.length < 3) {
+    ctx.fillStyle = '#bbb';
+    ctx.font = '13px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('No geometry defined. Add nodes in the editor above.', W / 2, H / 2);
+    ctx.textAlign = 'left';
+    return;
+  }
+
+  const p = getParams();
+  const allX = pts.map(n => n.x), allY = pts.map(n => n.y);
+  const minX = Math.min(...allX), maxX = Math.max(...allX);
+  const minY = Math.min(...allY), maxY = Math.max(...allY);
+  const pad = 50;
+  const maxHW = Math.max(p.hwNormal, p.hwFlood, maxY + 5);
+  const figMaxY = Math.max(maxHW + 5, maxY + 5);
+  const figMinY = Math.min(minY - 5, p.baseElev - 3);
+  const figMinX = minX - (maxX - minX) * 0.35;
+  const figMaxX = maxX + (maxX - minX) * 0.2;
+  const sx = (W - 2 * pad) / (figMaxX - figMinX);
+  const sy = (H - 2 * pad) / (figMaxY - figMinY);
+  const s = Math.min(sx, sy);
+  const ox = pad - figMinX * s;
+  const oy = H - pad + figMinY * s;
+  const px2 = x => ox + x * s;
+  const py2 = y => oy - y * s;
+
+  // Dotted reference grid (#13)
+  drawFigGrid(ctx, W, H, px2, py2, figMinX, figMaxX, figMinY, figMaxY, s);
+
+  // Upstream water
+  const hwY = py2(p.hwNormal);
+  const heelX = px2(Math.min(...allX));
+  if (p.hwNormal > p.baseElev) {
+    ctx.fillStyle = 'rgba(100,160,240,0.25)';
+    ctx.fillRect(pad - 10, hwY, heelX - pad + 10, py2(p.baseElev) - hwY);
+  }
+
+  // Downstream water
+  const toeX = px2(Math.max(...allX));
+  if (p.twNormal > p.baseElev) {
+    ctx.fillStyle = 'rgba(100,160,240,0.18)';
+    ctx.fillRect(toeX, py2(p.twNormal), W - pad + 10 - toeX, py2(p.baseElev) - py2(p.twNormal));
+  }
+
+  // Dam polygon
+  ctx.beginPath();
+  pts.forEach((n, i) => i === 0 ? ctx.moveTo(px2(n.x), py2(n.y)) : ctx.lineTo(px2(n.x), py2(n.y)));
+  ctx.closePath();
+  ctx.fillStyle = '#c8c8c8';
+  ctx.fill();
+  ctx.strokeStyle = '#444';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Base line
+  ctx.strokeStyle = '#888';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad - 20, py2(p.baseElev));
+  ctx.lineTo(W - pad + 20, py2(p.baseElev));
+  ctx.stroke();
+
+  // HW line
+  ctx.strokeStyle = '#1a6cc7';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([6, 4]);
+  ctx.beginPath();
+  ctx.moveTo(pad - 10, py2(p.hwNormal));
+  ctx.lineTo(heelX + 10, py2(p.hwNormal));
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#1a6cc7';
+  ctx.font = '11px system-ui';
+  ctx.fillText('HW = ' + p.hwNormal.toFixed(2) + ' ft', pad - 8, py2(p.hwNormal) - 4);
+
+  // TW line
+  if (p.twNormal > p.baseElev) {
+    ctx.strokeStyle = '#5599dd';
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    ctx.moveTo(toeX - 10, py2(p.twNormal));
+    ctx.lineTo(W - pad + 10, py2(p.twNormal));
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#5599dd';
+    ctx.fillText('TW = ' + p.twNormal.toFixed(2) + ' ft', toeX + 4, py2(p.twNormal) - 4);
+  }
+
+  // Drain
+  if (p.hasDrain) {
+    const { heel } = getHeelToe(pts, p.baseElev);
+    const drainXr = heel + p.drainDist;
+    ctx.strokeStyle = '#888';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath();
+    ctx.moveTo(px2(drainXr), py2(p.baseElev));
+    ctx.lineTo(px2(drainXr), py2(p.baseElev) + 30);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#888';
+    ctx.font = '10px system-ui';
+    ctx.fillText('drain', px2(drainXr) + 2, py2(p.baseElev) + 24);
+  }
+
+  // Labels
+  ctx.fillStyle = '#333';
+  ctx.font = 'bold 11px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText('Heel', px2(Math.min(...allX)), py2(p.baseElev) + 18);
+  ctx.fillText('Toe', px2(Math.max(...allX)), py2(p.baseElev) + 18);
+  ctx.fillText('Base Elev = ' + p.baseElev.toFixed(2) + ' ft', (px2(Math.min(...allX)) + px2(Math.max(...allX))) / 2, py2(p.baseElev) + 30);
+  ctx.textAlign = 'left';
+
+  // Scale legend (#13)
+  drawScaleLegend(ctx, W, H, s);
+}
+
+// === INPUT HELPERS ===
+function getParams() {
+  const gv = id => parseFloat(document.getElementById(id).value) || 0;
+  const gb = id => document.getElementById(id).checked;
+  return {
+    hwNormal: gv('hwNormal'),
+    hwFlood: gv('hwFlood'),
+    twNormal: gv('twNormal'),
+    twFlood: gv('twFlood'),
+    baseElev: gv('baseElev'),
+    crestElev: gv('crestElev'),
+    concUW: gv('concUW') || 150,
+    waterUW: gv('waterUW') || 62.4,
+    phi: gv('phi') || 35,
+    cohesion: gv('cohesion'),
+    useCohesion: gb('useCohesion'),
+    foundationType: document.getElementById('foundationType').value,
+    hasDrain: gb('hasDrain'),
+    drainDist: gv('drainDist'),
+    drainEff: gv('drainEff') || 0.67,
+    hasUpstreamSilt: gb('hasUpstreamSilt'),
+    siltUpElev: gv('siltUpElev'),
+    siltUpUW: gv('siltUpUW') || 55,
+    siltUpPhi: gv('siltUpPhi') || 30,
+    hasDownstreamSoil: gb('hasDownstreamSoil'),
+    siltDnElev: gv('siltDnElev'),
+    siltDnUW: gv('siltDnUW') || 55,
+    siltDnPhi: gv('siltDnPhi') || 30,
+    kh: gv('kh'),
+    kv: gv('kv'),
+    useWestergaard: gb('useWestergaard'),
+    hasIce: gb('hasIce'),
+    iceLoad: gv('iceLoad'),
+    iceElev: document.getElementById('iceElev').value === '' ? null : gv('iceElev'),
+    overrideConc: gb('overrideConc'),
+    manWeight: gv('manWeight'),
+    manCgX: gv('manCgX'),
+    manCgY: gv('manCgY'),
+    addLoads: getAdditionalLoads(),
+    designCode: document.querySelector('input[name=designCode]:checked')?.value || 'ferc'
+  };
+}
+
+// === ADDITIONAL VERTICAL LOADS (bridge, gate, etc.) ===
+const addLoadState = [];
+function addVerticalLoadRow(label = '', load = 0, x = 0) {
+  addLoadState.push({ label, load, x });
+  renderAddLoadTable();
+}
+function removeVerticalLoadRow(i) {
+  addLoadState.splice(i, 1);
+  renderAddLoadTable();
+  onInputChange();
+}
+function renderAddLoadTable() {
+  const body = document.getElementById('addLoadBody');
+  if (!body) return;
+  body.innerHTML = addLoadState.map((r, i) => `
+    <tr>
+      <td><input type="text" value="${r.label.replace(/"/g,'&quot;')}" placeholder="e.g. Bridge"
+                 style="width:120px;padding:3px 6px;font-size:12px"
+                 onchange="addLoadState[${i}].label=this.value;onInputChange()"></td>
+      <td><input type="number" value="${r.load}" step="0.1"
+                 style="width:80px;padding:3px 6px;font-size:12px"
+                 onchange="addLoadState[${i}].load=parseFloat(this.value)||0;onInputChange()"></td>
+      <td><input type="number" value="${r.x}" step="0.1"
+                 style="width:80px;padding:3px 6px;font-size:12px"
+                 onchange="addLoadState[${i}].x=parseFloat(this.value)||0;onInputChange()"></td>
+      <td><button class="btn btn-sm btn-danger" onclick="removeVerticalLoadRow(${i})">&#10005;</button></td>
+    </tr>`).join('');
+}
+function getAdditionalLoads() {
+  return addLoadState.map(r => ({ label: r.label || 'Added Load', load: r.load, x: r.x }));
+}
+
+function toggleConcOverride() {
+  document.getElementById('concOverrideFields').style.display =
+    document.getElementById('overrideConc').checked ? 'grid' : 'none';
+  onInputChange();
+}
+
+function onInputChange() {
+  updateCodeDesc();
+  updateConcDisplay();
+}
+
+// #4 / #12 — compute & display the polygon weight and centroid so the user can sanity-check
+function updateConcDisplay() {
+  const pts = state.realNodes;
+  const wEl = document.getElementById('calcWeightDisp');
+  const xEl = document.getElementById('calcCgXDisp');
+  const yEl = document.getElementById('calcCgYDisp');
+  if (!wEl || pts.length < 3) return;
+  const gc = parseFloat(document.getElementById('concUW').value) || 150;
+  const base = parseFloat(document.getElementById('baseElev').value) || 0;
+  const cent = polygonCentroid(pts);
+  const { heel } = getHeelToe(pts, base);
+  const W = cent.area * gc / 1000;
+  wEl.value = W.toFixed(2);
+  xEl.value = (cent.x - heel).toFixed(2); // X̄ measured from heel
+  yEl.value = (cent.y - base).toFixed(2); // Ȳ measured above base
+}
+function toggleSiltUI() {
+  document.getElementById('upstreamSiltFields').style.display =
+    document.getElementById('hasUpstreamSilt').checked ? 'block' : 'none';
+  document.getElementById('downstreamSoilFields').style.display =
+    document.getElementById('hasDownstreamSoil').checked ? 'block' : 'none';
+}
+function updateCodeDesc() {
+  const code = document.querySelector('input[name=designCode]:checked')?.value || 'ferc';
+  const descs = {
+    ferc: 'FERC Chapter 3: Usual FS≥1.5, Flood FS≥1.1, Seismic FS≥1.1. Resultant in middle third (usual), middle half (flood/seismic).',
+    usace: 'USACE EM 1110-2-2100: Usual FS≥2.0, Flood FS≥1.3, Seismic FS≥1.3, Extreme FS≥1.1. Resultant location governs.'
+  };
+  const el = document.getElementById('codeDesc');
+  if (el) el.textContent = descs[code] || '';
+}
+
+// === GEOMETRY MATH ===
+function polygonArea(pts) {
+  const n = pts.length;
+  let a = 0;
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    a += pts[i].x * pts[j].y - pts[j].x * pts[i].y;
+  }
+  return Math.abs(a) / 2;
+}
+
+function polygonCentroid(pts) {
+  const n = pts.length;
+  let A = 0, cx = 0, cy = 0;
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    const c = pts[i].x * pts[j].y - pts[j].x * pts[i].y;
+    A += c;
+    cx += (pts[i].x + pts[j].x) * c;
+    cy += (pts[i].y + pts[j].y) * c;
+  }
+  A /= 2;
+  return { x: cx / (6 * A), y: cy / (6 * A), area: Math.abs(A) };
+}
+
+function getHeelToe(pts, baseElev) {
+  // Try to find base nodes
+  const allY = pts.map(n => n.y);
+  const minY = Math.min(...allY);
+  const tol = (Math.max(...allY) - minY) * 0.05 + 0.1;
+  const baseNodes = pts.filter(n => Math.abs(n.y - minY) <= tol);
+  if (baseNodes.length >= 2) {
+    const allX = baseNodes.map(n => n.x);
+    return { heel: Math.min(...allX), toe: Math.max(...allX) };
+  }
+  const allX = pts.map(n => n.x);
+  return { heel: Math.min(...allX), toe: Math.max(...allX) };
+}
+
+// === CRITERIA ===
+const CRITERIA = {
+  ferc: {
+    usual:   { fs_slide: 1.5,  fs_overturn: 2.0,  resultant: 'middle_third', label: 'FERC Usual' },
+    flood:   { fs_slide: 1.1,  fs_overturn: 1.3,  resultant: 'middle_half',  label: 'FERC Flood' },
+    seismic: { fs_slide: 1.1,  fs_overturn: 1.3,  resultant: 'on_base',      label: 'FERC Seismic' },
+    extreme: { fs_slide: 1.1,  fs_overturn: 1.3,  resultant: 'on_base',      label: 'FERC Extreme' }
+  },
+  usace: {
+    usual:   { fs_slide: 2.0,  fs_overturn: null, resultant: 'middle_third', label: 'USACE Usual' },
+    flood:   { fs_slide: 1.3,  fs_overturn: null, resultant: 'middle_half',  label: 'USACE Flood' },
+    seismic: { fs_slide: 1.3,  fs_overturn: null, resultant: 'middle_half',  label: 'USACE Seismic' },
+    extreme: { fs_slide: 1.1,  fs_overturn: null, resultant: 'on_base',      label: 'USACE Extreme' }
+  }
+};
+
+const LOAD_CASES = {
+  usual:   { hwKey: 'hwNormal', twKey: 'twNormal', seismic: false, label: 'Usual (Normal Pool)' },
+  flood:   { hwKey: 'hwFlood',  twKey: 'twFlood',  seismic: false, label: 'Flood' },
+  seismic: { hwKey: 'hwNormal', twKey: 'twNormal', seismic: true,  label: 'Seismic' },
+  extreme: { hwKey: 'hwFlood',  twKey: 'twFlood',  seismic: true,  label: 'Extreme (Seismic + Flood)' }
+};
+
+// === FORCE CALCULATION ===
+function calcLoads(pts, p, caseKey) {
+  const lc = LOAD_CASES[caseKey];
+  const hw = p[lc.hwKey];
+  const tw = p[lc.twKey];
+  const base = p.baseElev;
+  const gw = p.waterUW;
+  const gc = p.concUW;
+
+  const { heel, toe } = getHeelToe(pts, base);
+  const B = toe - heel;
+
+  // Geometry — centroid of the dam polygon (signed-area formula, valid for any winding)
+  const cent = polygonCentroid(pts);
+  const area = cent.area;
+  let W = area * gc / 1000; // kips/ft
+  let cx = cent.x; // real x coord of centroid (absolute)
+  let cy = cent.y; // real y coord of centroid (absolute elevation)
+  let weightNote = `Area=${area.toFixed(2)} ft², γ=${gc} pcf`;
+
+  // #12 — manual override of weight / centroid
+  if (p.overrideConc) {
+    W  = p.manWeight;
+    cx = heel + p.manCgX;        // manual X̄ entered relative to heel
+    cy = base + p.manCgY;        // manual Ȳ entered relative to base
+    weightNote = `manual override (W, X̄, Ȳ user-set)`;
+  }
+
+  const hd = Math.max(0, hw - base); // headwater depth above base
+  const td = Math.max(0, tw - base); // tailwater depth
+
+  const vForces = [];
+  const hForces = [];
+
+  // 1. Self weight — moment arm from toe
+  const armW = toe - cx; // from toe
+  vForces.push({
+    label: 'Concrete Weight W',
+    F: W,
+    arm: armW,
+    moment: W * armW,
+    note: weightNote
+  });
+
+  // 1b. #5 — additional user-defined vertical loads (bridge, gate, pier, etc.)
+  if (Array.isArray(p.addLoads)) {
+    p.addLoads.forEach(al => {
+      if (Math.abs(al.load) < 1e-9) return;
+      const xAbs = heel + al.x;        // x entered relative to heel
+      const arm  = toe - xAbs;         // moment arm from toe
+      vForces.push({
+        label: al.label,
+        F: al.load,
+        arm,
+        moment: al.load * arm,
+        note: `added load @ ${al.x.toFixed(2)} ft from heel`
+      });
+    });
+  }
+
+  // 1c. #2 — vertical water weight resting on horizontal "landings" of the upstream face.
+  //     Any near-horizontal upward-facing edge of the upstream profile that lies below the
+  //     headwater carries a downward water column = γw × depth × horizontal run.
+  if (hd > 0) {
+    let Vwater = 0, Mwater = 0;
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i], b = pts[(i + 1) % pts.length];
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const ymid = (a.y + b.y) / 2, xmid = (a.x + b.x) / 2;
+      // Upstream half of the section, below water, edge with a horizontal run (a landing/step)
+      const isUpstreamHalf = xmid < (heel + toe) / 2;
+      const isNearHoriz = Math.abs(dy) < Math.abs(dx) * 0.30; // shallow slope ⇒ acts as a landing
+      if (isUpstreamHalf && isNearHoriz && ymid < hw && Math.abs(dx) > 1e-6) {
+        const depth = hw - ymid;
+        const dV = gw * depth * Math.abs(dx) / 1000; // kips/ft, downward
+        const arm = toe - xmid;
+        Vwater += dV;
+        Mwater += dV * arm;
+      }
+    }
+    if (Vwater > 0.001) {
+      vForces.push({
+        label: 'Water on Upstream Landing',
+        F: Vwater,
+        arm: Vwater > 0 ? Mwater / Vwater : 0,
+        moment: Mwater,
+        note: 'vertical weight of water on upstream steps'
+      });
+    }
+  }
+
+  // 2. Uplift
+  const pH = gw * hd / 1000; // ksf at heel
+  const pT = gw * td / 1000; // ksf at toe
+  let upliftForce = 0, upliftMoment = 0;
+
+  if (p.hasDrain && p.drainDist > 0 && p.drainDist < B) {
+    const d = p.drainDist; // from heel
+    // Pressure at drain: pD = pT + (1-E)*(pH - pT) but USACE: pD = pT + (1-E)*(pH - pT)
+    const pD = pT + (1 - p.drainEff) * (pH - pT);
+    // Trapezoid 1: heel to drain
+    const U1 = 0.5 * (pH + pD) * d;
+    const arm1_fromHeel = d * (pH + 2 * pD) / (3 * (pH + pD + 1e-12));
+    const arm1_fromToe = B - (heel - heel + arm1_fromHeel);
+    // Trapezoid 2: drain to toe
+    const U2 = 0.5 * (pD + pT) * (B - d);
+    const arm2_fromHeel = d + (B - d) * (2 * pD + pT) / (3 * (pD + pT + 1e-12));
+    const arm2_fromToe = B - arm2_fromHeel;
+    upliftForce = -(U1 + U2);
+    upliftMoment = -(U1 * arm1_fromToe + U2 * arm2_fromToe);
+    vForces.push({
+      label: 'Uplift U (with drain)',
+      F: upliftForce,
+      arm: Math.abs(upliftMoment / (upliftForce + 1e-12)),
+      moment: upliftMoment,
+      note: `pHeel=${(pH*1000).toFixed(0)}, pDrain=${(pD*1000).toFixed(0)}, pToe=${(pT*1000).toFixed(0)} psf`
+    });
+  } else {
+    // Linear uplift, no drain
+    upliftForce = -0.5 * (pH + pT) * B;
+    const uArm = B * (pH + 2 * pT) / (3 * (pH + pT + 1e-12));
+    upliftMoment = upliftForce * uArm;
+    vForces.push({
+      label: 'Uplift U (no drain)',
+      F: upliftForce,
+      arm: uArm,
+      moment: upliftMoment,
+      note: `pHeel=${(pH*1000).toFixed(0)}, pToe=${(pT*1000).toFixed(0)} psf`
+    });
+  }
+
+  // 3. Upstream silt vertical
+  if (p.hasUpstreamSilt && p.siltUpElev > base) {
+    const hs = Math.min(p.siltUpElev - base, hd);
+    const Ka = Math.pow(Math.tan((45 - p.siltUpPhi / 2) * Math.PI / 180), 2);
+    // Vertical force: weight of silt on upstream inclined face (simplified: if upstream face is vertical, Fv=0)
+    // Find upstream face slope
+    const upFaceNodes = pts.filter(n => Math.abs(n.x - heel) < B * 0.1);
+    const Fv_silt = p.siltUpUW * hs * 0 / 1000; // simplified: 0 for vertical face
+    if (Math.abs(Fv_silt) > 0.001) {
+      vForces.push({ label: 'Upstream Silt (vert)', F: Fv_silt, arm: B, moment: Fv_silt * B, note: '' });
+    }
+  }
+
+  // 4. Headwater horizontal
+  if (hd > 0) {
+    const FHW = 0.5 * gw * hd * hd / 1000; // kips/ft
+    const yArm = hd / 3; // from base
+    hForces.push({
+      label: 'Headwater HW',
+      F: FHW,
+      arm: yArm,
+      moment: FHW * yArm,
+      note: `h=${hd.toFixed(2)} ft`
+    });
+  }
+
+  // 5. Tailwater horizontal (opposing)
+  if (td > 0) {
+    const FTW = -0.5 * gw * td * td / 1000;
+    const yArm = td / 3;
+    hForces.push({
+      label: 'Tailwater TW',
+      F: FTW,
+      arm: yArm,
+      moment: FTW * yArm,
+      note: `h=${td.toFixed(2)} ft`
+    });
+  }
+
+  // 6. Upstream silt horizontal
+  if (p.hasUpstreamSilt && p.siltUpElev > base) {
+    const hs = Math.min(p.siltUpElev - base, hd);
+    const Ka = Math.pow(Math.tan((45 - p.siltUpPhi / 2) * Math.PI / 180), 2);
+    const Fs_h = 0.5 * Ka * p.siltUpUW * hs * hs / 1000;
+    const yArm = hs / 3;
+    hForces.push({
+      label: 'Upstream Silt H',
+      F: Fs_h,
+      arm: yArm,
+      moment: Fs_h * yArm,
+      note: `Ka=${Ka.toFixed(3)}, hs=${hs.toFixed(2)} ft`
+    });
+  }
+
+  // 7. Seismic
+  if (lc.seismic && p.kh > 0) {
+    // Concrete inertia
+    const Feq = p.kh * W;
+    hForces.push({
+      label: 'Seismic (concrete)',
+      F: Feq,
+      arm: cy - base,
+      moment: Feq * (cy - base),
+      note: `kh=${p.kh}, W=${W.toFixed(1)} kips/ft`
+    });
+    // Westergaard hydrodynamic
+    if (p.useWestergaard && hd > 0) {
+      const Fhd = 0.555 * p.kh * gw * hd * hd / 1000;
+      const yArmHD = 0.4 * hd;
+      hForces.push({
+        label: 'Westergaard Hydrodyn.',
+        F: Fhd,
+        arm: yArmHD,
+        moment: Fhd * yArmHD,
+        note: `Simplified Westergaard`
+      });
+    }
+  }
+
+  // 8. #11 — Ice load (horizontal thrust at the ice/water surface)
+  if (p.hasIce && p.iceLoad > 0) {
+    const iceEl = (p.iceElev !== null && p.iceElev !== undefined) ? p.iceElev : hw;
+    const yArm = iceEl - base; // arm above base
+    hForces.push({
+      label: 'Ice Thrust',
+      F: p.iceLoad,
+      arm: yArm,
+      moment: p.iceLoad * yArm,
+      note: `applied at EL ${iceEl.toFixed(1)} ft`
+    });
+  }
+
+  // 9. #3 — Foundation key horizontal load.
+  //    A key extends below the base; its upstream face carries near-constant water
+  //    pressure (≈ base headwater intensity) over the key depth — tracked separately.
+  const minNodeY = Math.min(...pts.map(n => n.y));
+  const keyDepth = base - minNodeY; // >0 if any node dips below the base line
+  if (keyDepth > 0.01 && hd > 0) {
+    const pBase = gw * hd / 1000;            // ksf at base elevation
+    const Fkey  = pBase * keyDepth;          // kips/ft (rectangular over key depth)
+    const yArm  = -keyDepth / 2;             // acts below the base ⇒ negative arm
+    hForces.push({
+      label: 'Foundation Key (water)',
+      F: Fkey,
+      arm: yArm,
+      moment: Fkey * yArm,
+      note: `key depth ${keyDepth.toFixed(2)} ft below base`
+    });
+  }
+
+  // Sums
+  const sumV = vForces.reduce((s, f) => s + f.F, 0);
+  const sumH = hForces.reduce((s, f) => s + f.F, 0);
+  const sumMV = vForces.reduce((s, f) => s + f.moment, 0); // moments from toe (stabilizing +)
+  const sumMH = hForces.reduce((s, f) => s + f.moment, 0); // overturning moments
+
+  // Store uplift pressure intensities (psf) for drawing the trapezoidal diagram
+  const upliftPressures = { pH: pH * 1000, pT: pT * 1000 };
+  if (p.hasDrain && p.drainDist > 0 && p.drainDist < B) {
+    upliftPressures.pD = (pT + (1 - p.drainEff) * (pH - pT)) * 1000;
+    upliftPressures.drainX = heel + p.drainDist;
+  }
+  return { vForces, hForces, sumV, sumH, sumMV, sumMH, B, heel, toe, hd, td, W, cx, cy, area, upliftPressures };
+}
+
+// === STABILITY CHECKS ===
+function checkStability(loads, p, caseKey) {
+  const { sumV, sumH, sumMV, sumMH, B, heel, toe } = loads;
+  const phiRad = p.phi * Math.PI / 180;
+  const coh = p.useCohesion ? p.cohesion / 1000 : 0; // ksf
+
+  // Sliding FS = (N*tan(phi) + c*B) / H
+  const N = sumV; // net vertical (uplift already negative)
+  const frictionR = Math.max(0, N) * Math.tan(phiRad);
+  const cohesionR = coh * B;
+  const H_drive = Math.abs(sumH);
+  const FS_slide = H_drive > 1e-6 ? (frictionR + cohesionR) / H_drive : Infinity;
+
+  // Overturning moments about toe
+  // Stabilizing: weight * arm, TW vertical * arm (already in sumMV with correct signs)
+  // Overturning: uplift * arm, HW * arm (already in sumMH)
+  // Net moment about toe from all vertical forces:
+  const MV_net = sumMV; // from vForces (moments about toe)
+  const MH_net = sumMH; // from hForces (overturning)
+
+  // Mr = stabilizing vertical moments (positive)
+  const Mr = loads.vForces.filter(f => f.moment > 0).reduce((s, f) => s + f.moment, 0);
+  // Mo_v = destabilizing vertical moments
+  const Mo_v = Math.abs(loads.vForces.filter(f => f.moment < 0).reduce((s, f) => s + f.moment, 0));
+  // Mo_h = overturning from horizontal forces
+  const Mo_h = Math.abs(loads.hForces.filter(f => f.moment > 0).reduce((s, f) => s + f.moment, 0));
+  const Mo = Mo_v + Mo_h;
+  const FS_OT = Mo > 1e-6 ? Mr / Mo : Infinity;
+
+  // Resultant location (from toe)
+  // x_R = net moment about toe / net vertical force
+  const netM = MV_net - MH_net; // net moment about toe
+  const x_R = Math.abs(N) > 1e-6 ? netM / N : B / 2;
+  const e = B / 2 - x_R; // eccentricity from center
+
+  // Resultant location checks
+  const inMiddleThird = Math.abs(e) <= B / 6;
+  const inMiddleHalf = Math.abs(e) <= B / 4;
+  const onBase = x_R >= 0 && x_R <= B;
+
+  // Base pressures
+  let sigma_toe, sigma_heel;
+  if (Math.abs(e) <= B / 6) {
+    sigma_toe = N / B * (1 + 6 * Math.abs(e) / B) * (e >= 0 ? 1 : 1);
+    sigma_heel = N / B * (1 - 6 * Math.abs(e) / B);
+    // Sign: if e>0 (resultant toward heel), toe pressure is lower
+    sigma_toe = N / B + 6 * N * e / (B * B);
+    sigma_heel = N / B - 6 * N * e / (B * B);
+  } else {
+    // Triangular distribution
+    sigma_toe = 2 * N / (3 * x_R);
+    sigma_heel = 0; // tension not transferred
+  }
+
+  return {
+    FS_slide, FS_OT, Mr, Mo, N, H_drive,
+    frictionR, cohesionR,
+    x_R, e, B,
+    inMiddleThird, inMiddleHalf, onBase,
+    sigma_toe: sigma_toe * 1000, // psf
+    sigma_heel: sigma_heel * 1000,
+    tension: sigma_heel < -1
+  };
+}
+
+// === RUN ANALYSIS ===
+function runAnalysis() {
+  updateConcDisplay();
+  const p = getParams();
+  const pts = state.realNodes;
+
+  // Validate
+  const msgs = [];
+  if (pts.length < 3) msgs.push('Define at least 3 nodes in the Geometry tab.');
+  if (p.hwNormal <= p.baseElev) msgs.push('Headwater Normal must be above Base Elevation.');
+  if (p.phi <= 0) msgs.push('Friction angle must be > 0.');
+  const vm = document.getElementById('inputValidationMsg');
+  if (msgs.length > 0) {
+    if (vm) vm.innerHTML = `<div class="sbar s-err">${msgs.join('<br>')}</div>`;
+    return;
+  }
+  if (vm) vm.innerHTML = '';
+
+  state.results = {};
+  ['usual', 'flood', 'seismic', 'extreme'].forEach(caseKey => {
+    const loads = calcLoads(pts, p, caseKey);
+    const stability = checkStability(loads, p, caseKey);
+    state.results[caseKey] = { loads, stability, caseKey, p };
+  });
+
+  state.analysisRan = true;
+  buildCaseTabs();
+  showLoadCase(0);
+  showResultCase(0);
+}
+
+function buildCaseTabs() {
+  const caseKeys = ['usual', 'flood', 'seismic', 'extreme'];
+  const labels = ['Usual', 'Flood', 'Seismic', 'Extreme'];
+  ['loadCaseTabs', 'resultCaseTabs'].forEach((tabId, ti) => {
+    document.getElementById(tabId).innerHTML = caseKeys.map((k, i) =>
+      `<button class="ctab${i === 0 ? ' active' : ''}" onclick="${ti === 0 ? 'selLoadCase' : 'selResultCase'}(${i},this)">${labels[i]}</button>`
+    ).join('');
+  });
+}
+
+// === LOADS TAB ===
+function selLoadCase(i, btn) {
+  btn.parentNode.querySelectorAll('.ctab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  showLoadCase(i);
+}
+
+function showLoadCase(idx) {
+  if (!state.analysisRan) return;
+  const caseKeys = ['usual', 'flood', 'seismic', 'extreme'];
+  const key = caseKeys[idx];
+  const res = state.results[key];
+  if (!res) return;
+  state.activeResultTab = key;
+  state.panOffset = { x: 0, y: 0 }; // reset pan when switching cases
+  drawLoadDiagram(res);
+  renderLoadTable(res);
+}
+
+function drawLoadDiagram(res) {
+  const canvas = document.getElementById('loadCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const pts = state.realNodes;
+  const { loads, p } = res;
+  const { heel, toe, hd, td, B, W: weight, sumV, sumH } = loads;
+  const pad = 60;
+
+  const allX = pts.map(n => n.x), allY = pts.map(n => n.y);
+  const minX = Math.min(...allX) - B * 0.55;
+  const maxX = Math.max(...allX) + B * 0.35;
+  const minY = p.baseElev - 5;
+  const maxY = Math.max(...allY, p.hwNormal, p.hwFlood) + 10;
+
+  const sx = (W - 2 * pad) / (maxX - minX);
+  const sy = (H - 2 * pad) / (maxY - minY);
+  const s = Math.min(sx, sy);
+  // Apply pan offset
+  const ox = pad - minX * s + state.panOffset.x;
+  const oy = H - pad + minY * s + state.panOffset.y;
+  const px = x => ox + x * s;
+  const py = y => oy - y * s;
+
+  // Dotted reference grid (#13)
+  drawFigGrid(ctx, W, H, px, py, minX, maxX, minY, maxY, s);
+
+  // Water background upstream
+  if (hd > 0) {
+    ctx.fillStyle = 'rgba(100,160,240,0.13)';
+    ctx.fillRect(pad - 5, py(p[LOAD_CASES[res.caseKey].hwKey]), px(heel) - pad + 5, py(p.baseElev) - py(p[LOAD_CASES[res.caseKey].hwKey]));
+  }
+
+  // Dam polygon
+  ctx.beginPath();
+  pts.forEach((n, i) => i === 0 ? ctx.moveTo(px(n.x), py(n.y)) : ctx.lineTo(px(n.x), py(n.y)));
+  ctx.closePath();
+  ctx.fillStyle = '#d0d0d0';
+  ctx.fill();
+  ctx.strokeStyle = '#444';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Base line
+  ctx.strokeStyle = '#666';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([6, 4]);
+  ctx.beginPath();
+  ctx.moveTo(pad - 20, py(p.baseElev));
+  ctx.lineTo(W - pad + 20, py(p.baseElev));
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // === PRESSURE SCALE ===
+  // hwIntensity = pressure intensity at base (ksf), NOT the resultant force
+  // Triangle base width and uplift depth both use this same scale so they match.
+  const hwIntensity = (p.waterUW || 62.4) * hd / 1000;  // ksf at base (γ × h)
+  const pressScale = hwIntensity > 0 ? (B * s * 0.42) / hwIntensity : 40; // px per ksf
+
+  // === UPLIFT pressure diagram (trapezoid below base line) ===
+  // Use hwIntensity / twIntensity directly — same source as the HW/TW triangles —
+  // so the heel depth exactly equals the HW triangle base width and the toe depth
+  // exactly equals the TW triangle base width.
+  {
+    const { pH, pT, pD, drainX } = loads.upliftPressures || {};
+    if (pH !== undefined) {
+      const heelPx = px(heel), toePx = px(toe);
+      const twIntensityLocal = (p.waterUW || 62.4) * td / 1000; // ksf at toe
+      const upliftH = hwIntensity  * pressScale;   // pixel depth at heel — matches HW triangle base width
+      const upliftT = twIntensityLocal * pressScale; // pixel depth at toe  — matches TW triangle base width
+      const baseY   = py(p.baseElev);
+
+      const drawUpliftTrap = (x1, y1, x2, y2, alpha) => {
+        ctx.beginPath();
+        ctx.moveTo(x1, baseY);
+        ctx.lineTo(x1, baseY + y1);
+        ctx.lineTo(x2, baseY + y2);
+        ctx.lineTo(x2, baseY);
+        ctx.closePath();
+        ctx.fillStyle = `rgba(192,57,43,${alpha})`;
+        ctx.fill();
+        ctx.strokeStyle = '#c0392b';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      };
+
+      if (p.hasDrain && drainX !== undefined) {
+        const drPx  = px(drainX);
+        const upliftD = (pD / 1000) * pressScale;
+        drawUpliftTrap(heelPx, upliftH, drPx, upliftD, 0.25);
+        drawUpliftTrap(drPx, upliftD, toePx, upliftT, 0.18);
+        // Drain marker on uplift
+        ctx.setLineDash([3,3]);
+        ctx.strokeStyle = '#c0392b'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(drPx, baseY); ctx.lineTo(drPx, baseY + upliftD + 8); ctx.stroke();
+        ctx.setLineDash([]);
+        // pD label
+        ctx.fillStyle = '#c0392b'; ctx.font = '9px monospace'; ctx.textAlign = 'center';
+        ctx.fillText((pD/1000).toFixed(2)+' ksf', drPx, baseY + upliftD + 18);
+      } else {
+        drawUpliftTrap(heelPx, upliftH, toePx, upliftT, 0.25);
+      }
+
+      // Pressure labels at heel and toe (use same intensities as the triangles)
+      ctx.fillStyle = '#c0392b'; ctx.font = '9px monospace'; ctx.textAlign = 'center';
+      ctx.fillText(hwIntensity.toFixed(2)+' ksf', heelPx, baseY + upliftH + 13);
+      if (upliftT > 4) ctx.fillText(twIntensityLocal.toFixed(2)+' ksf', toePx, baseY + upliftT + 13);
+
+      // Upward arrows sized to local pressure depth
+      const nArr = 6;
+      for (let i = 0; i <= nArr; i++) {
+        const frac = i / nArr;
+        const xp2 = heelPx + (toePx - heelPx) * frac;
+        let arrH;
+        if (p.hasDrain && drainX !== undefined) {
+          const drFrac = (drainX - heel) / B;
+          const upliftD = (pD / 1000) * pressScale;
+          arrH = frac <= drFrac
+            ? upliftH + (upliftD - upliftH) * (frac / (drFrac || 0.001))
+            : upliftD + (upliftT - upliftD) * ((frac - drFrac) / ((1 - drFrac) || 0.001));
+        } else {
+          arrH = upliftH + (upliftT - upliftH) * frac;
         }
-
-        function switchLoadCase(caseIdx) {
-            currentLoadCase = caseIdx;
-            document.querySelectorAll('#caseSelectorForces .case-btn, #caseSelectorResults .case-btn').forEach((btn, i) => {
-                if((i % 3) === (caseIdx - 1)) btn.classList.add('active');
-                else btn.classList.remove('active');
-            });
-            updateAll();
+        if (arrH > 6) {
+          ctx.strokeStyle = '#c0392b'; ctx.lineWidth = 1.2;
+          arrow(ctx, xp2, baseY + arrH * 0.55, xp2, baseY, 4);
         }
-
-        // --- Settings Storage Engine ---
-        function saveSettings() {
-            const key = document.getElementById('cfgApiKey').value.trim();
-            if(key) {
-                sessionStorage.setItem('damstab_ant_key', key);
-                document.getElementById('btnVision').disabled = false;
-                alert("API credentials mapped successfully.");
-            }
-        }
-        function loadSettings() {
-            const cached = sessionStorage.getItem('damstab_ant_key');
-            if(cached) {
-                document.getElementById('cfgApiKey').value = cached;
-                document.getElementById('btnVision').disabled = false;
-            }
-        }
-        function clearSettings() {
-            sessionStorage.removeItem('damstab_ant_key');
-            document.getElementById('cfgApiKey').value = "";
-            document.getElementById('btnVision').disabled = true;
-            alert("Credentials wiped cleanly.");
-        }
-
-        // --- Input Helper Management Tools ---
-        function toggleWeightOverride() {
-            const active = document.getElementById('chkWeightOverride').checked;
-            document.getElementById('inpWeightOverride').disabled = !active;
-            updateAll();
-        }
-        function toggleDrainInputs() {
-            const active = document.getElementById('chkDrainPresent').checked;
-            document.getElementById('inpDrainDist').disabled = !active;
-            document.getElementById('inpDrainEff').disabled = !active;
-            updateAll();
-        }
-
-        // --- Canvas UI Mapping System Logic ---
-        function initMappingCanvas() {
-            const cvs = document.getElementById('mappingCanvas');
-            cvs.width = 600; cvs.height = 400;
-
-            cvs.addEventListener('mousedown', function(e) {
-                const rect = cvs.getBoundingClientRect();
-                const mx = e.clientX - rect.left;
-                const my = e.clientY - rect.top;
-                
-                draggedNodeIndex = nodes.findIndex(n => Math.hypot(n.x - mx, n.y - my) < 10);
-            });
-
-            cvs.addEventListener('mousemove', function(e) {
-                if (draggedNodeIndex === -1) return;
-                const rect = cvs.getBoundingClientRect();
-                nodes[draggedNodeIndex].x = e.clientX - rect.left;
-                nodes[draggedNodeIndex].y = e.clientY - rect.top;
-                
-                // Real-time recalculation constraints
-                syncDimensionsFromNodes();
-                renderCanvases();
-            });
-
-            window.addEventListener('mouseup', () => { draggedNodeIndex = -1; });
-        }
-
-        function handleFileSelect(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(evt) {
-                baseImg = new Image();
-                baseImg.onload = function() {
-                    const cvs = document.getElementById('mappingCanvas');
-                    cvs.width = baseImg.width > 800 ? 800 : (baseImg.width < 500 ? 500 : baseImg.width);
-                    cvs.height = (baseImg.height / baseImg.width) * cvs.width;
-                    
-                    // Reposition node anchors proportionally across spatial scope
-                    nodes[0] = { x: cvs.width * 0.25, y: cvs.height * 0.85, label: "Heel" };
-                    nodes[1] = { x: cvs.width * 0.35, y: cvs.height * 0.20, label: "Crest Start" };
-                    nodes[2] = { x: cvs.width * 0.45, y: cvs.height * 0.20, label: "Crest End" };
-                    nodes[3] = { x: cvs.width * 0.70, y: cvs.height * 0.85, label: "Toe" };
-                    
-                    syncDimensionsFromNodes();
-                    renderCanvases();
-                };
-                baseImg.src = evt.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
-
-        function syncDimensionsFromNodes() {
-            // Automatically derive physical scale proportions assuming User Target Parameters match bounding height
-            const currentB = parseFloat(document.getElementById('inpB').value) || 45;
-            const currentH = parseFloat(document.getElementById('inpH').value) || 60;
-            
-            // Recompute cross slope ratios from active polygon node parameters
-            let pxBase = Math.abs(nodes[3].x - nodes[0].x) || 1;
-            let pxHeight = Math.abs(nodes[0].y - nodes[1].y) || 1;
-            
-            let pxCrest = Math.abs(nodes[2].x - nodes[1].x);
-            let computedA = (pxCrest / pxBase) * currentB;
-            
-            document.getElementById('inpA').value = computedA.toFixed(1);
-            updateAll();
-        }
-
-        // --- Core Application Analytical Engine ---
-        function updateAll() {
-            const calcData = runAnalysisForCase(currentLoadCase);
-            renderCanvases();
-            updateUIFields(calcData);
-        }
-
-        function runAnalysisForCase(caseNumber) {
-            // Extract baseline global metrics
-            const H = parseFloat(document.getElementById('inpH').value) || 60;
-            const B = parseFloat(document.getElementById('inpB').value) || 45;
-            const a = parseFloat(document.getElementById('inpA').value) || 6;
-            const gammaC = parseFloat(document.getElementById('inpGammaC').value) || 150;
-            const gammaW = parseFloat(document.getElementById('inpGammaW').value) || 62.4;
-            
-            const phi = parseFloat(document.getElementById('inpPhi').value) || 40;
-            const useCohesion = document.getElementById('chkIncludeCohesion').checked;
-            const cohesionKsf = useCohesion ? (parseFloat(document.getElementById('inpCohesion').value) || 0) : 0;
-            
-            const drainPresent = document.getElementById('chkDrainPresent').checked;
-            const drainDist = drainPresent ? (parseFloat(document.getElementById('inpDrainDist').value) || 0) : 0;
-            const drainEff = drainPresent ? (parseFloat(document.getElementById('inpDrainEff').value) || 0) : 0;
-            
-            const code = document.getElementById('designCode').value;
-            const crackingEnabled = document.getElementById('chkEnableCracking').checked;
-            const activeCrack = crackingEnabled ? (parseFloat(document.getElementById('inpActiveCrack').value) || 0) : 0;
-
-            // Load case parameters selection mapping
-            let hw = 0, tw = 0, kh = 0;
-            if(caseNumber === 1) {
-                hw = parseFloat(document.getElementById('case1_hw').value) || 0;
-                tw = parseFloat(document.getElementById('case1_tw').value) || 0;
-            } else if(caseNumber === 2) {
-                hw = parseFloat(document.getElementById('case2_hw').value) || 0;
-                tw = parseFloat(document.getElementById('case2_tw').value) || 0;
-            } else {
-                hw = parseFloat(document.getElementById('case3_hw').value) || 0;
-                tw = parseFloat(document.getElementById('case3_tw').value) || 0;
-                kh = parseFloat(document.getElementById('case3_kh').value) || 0;
-            }
-
-            // Geometric Polygon Area Calculation via Standard Coordinate Mapping Space
-            // Coordinates relative to structural heel located at local origin (0, H) matching canvas orientation models
-            let shapeVertices = [
-                {x: 0, y: 0},     // Heel Base
-                {x: 0, y: H},     // Vertical Upstream Face Up to Crest
-                {x: a, y: H},     // Along Crest Width
-                {x: B, y: 0}      // Downstream sloping face block termination at toe
-            ];
-
-            // Shoelace Algorithm implementation for programmatic Area & Mass Centroid derivation
-            let area = 0, cx = 0, cy = 0;
-            let numPt = shapeVertices.length;
-            for (let i = 0; i < numPt; i++) {
-                let j = (i + 1) % numPt;
-                let factor = (shapeVertices[i].x * shapeVertices[j].y - shapeVertices[j].x * shapeVertices[i].y);
-                area += factor;
-                cx += (shapeVertices[i].x + shapeVertices[j].x) * factor;
-                cy += (shapeVertices[i].y + shapeVertices[j].y) * factor;
-            }
-            area = Math.abs(area / 2);
-            cx = Math.abs(cx / (6 * area));
-            cy = Math.abs(cy / (6 * area));
-
-            // Mass Weight configuration assignment
-            let W_calc = area * (gammaC / 1000); // kips per linear structural foot
-            let W = document.getElementById('chkWeightOverride').checked ? 
-                        (parseFloat(document.getElementById('inpWeightOverride').value) || W_calc) : W_calc;
-
-            // Individual Force Vector Matrix Mapping Definitions
-            let forcesList = [];
-
-            // 1. Structural Self Weight (Gravity Target Direction Downward)
-            forcesList.push({ name: "Self Weight (W)", fx: 0, fy: -W, x: cx, y: cy, note: "Computed section centroid" });
-
-            // 2. Headwater Lateral Hydrostatic Pressure Vector
-            if(hw > 0) {
-                let P_hw = 0.5 * (gammaW / 1000) * Math.pow(hw, 2);
-                forcesList.push({ name: "Headwater Hydrostatic", fx: P_hw, fy: 0, x: 0, y: hw / 3, note: "Active Driving Vector" });
-            }
-
-            // 3. Tailwater Lateral Hydrostatic Pressure Vector
-            if(tw > 0) {
-                let P_tw = 0.5 * (gammaW / 1000) * Math.pow(tw, 2);
-                forcesList.push({ name: "Tailwater Hydrostatic", fx: -P_tw, fy: 0, x: B, y: tw / 3, note: "Stabilizing Resistant Vector" });
-            }
-
-            // 4. Uplift Pressure Model Profile (Incorporating internal foundation relative drainage limits)
-            let p_heel = hw * (gammaW / 1000);
-            let p_toe = tw * (gammaW / 1000);
-            let totalUpliftForce = 0;
-            let upliftMomentAboutToe = 0;
-
-            // Integration evaluation tracking matrix array blocks across the baseline width space slice boundaries
-            // We slice the profile along three evaluation nodes: Heel (0), Drain line location (drainDist), and Toe (B)
-            let segments = [];
-            let u_crack = p_heel;
-
-            if (crackingEnabled && activeCrack > 0) {
-                // If crack exists, full headwater pressure penetrates down along crack path segment
-                segments.push({ x0: 0, x1: activeCrack, y0: u_crack, y1: u_crack });
-                
-                // Reset effective boundary condition markers relative to internal remaining profile
-                let effectiveHeelX = activeCrack;
-                let base_undrained = p_toe + ((B - effectiveHeelX) / B) * (p_heel - p_toe);
-                let p_drain_eff = p_toe + (1 - drainEff) * (base_undrained - p_toe);
-
-                if (drainPresent && drainDist > effectiveHeelX && drainDist < B) {
-                    segments.push({ x0: effectiveHeelX, x1: drainDist, y0: u_crack, y1: p_drain_eff });
-                    segments.push({ x0: drainDist, x1: B, y0: p_drain_eff, y1: p_toe });
-                } else {
-                    segments.push({ x0: effectiveHeelX, x1: B, y0: u_crack, y1: p_toe });
-                }
-            } else {
-                // Uncracked classic baseline loading metrics conditions
-                let base_undrained = p_toe + ((B - drainDist) / B) * (p_heel - p_toe);
-                let p_drain_eff = p_toe + (1 - drainEff) * (base_undrained - p_toe);
-
-                if (drainPresent && drainDist > 0 && drainDist < B) {
-                    segments.push({ x0: 0, x1: drainDist, y0: p_heel, y1: p_drain_eff });
-                    segments.push({ x0: drainDist, x1: B, y0: p_drain_eff, y1: p_toe });
-                } else {
-                    segments.push({ x0: 0, x1: B, y0: p_heel, y1: p_toe });
-                }
-            }
-
-            // Aggregate internal structural segments calculations data layers
-            segments.forEach(seg => {
-                let W_seg = (seg.x1 - seg.x0);
-                let F_seg = 0.5 * (seg.y0 + seg.y1) * W_seg; // Area of pressure block trapezoid
-                let centroid_local = (W_seg / 3) * ((seg.y0 + 2 * seg.y1) / (seg.y0 + seg.y1));
-                let x_global = seg.x0 + centroid_local;
-                
-                totalUpliftForce += F_seg;
-                // Accumulate moment calculations relative to downstream point toe boundary
-                upliftMomentAboutToe += F_seg * (B - x_global);
-            });
-
-            forcesList.push({
-                name: "Foundation Uplift Force",
-                fx: 0,
-                fy: totalUpliftForce, // Pointing up (handled appropriately as negative relative structural action)
-                x: B - (upliftMomentAboutToe / (totalUpliftForce || 1)),
-                y: 0,
-                note: crackingEnabled ? "Cracked-base adjustment path" : "Drain relief mapped"
-            });
-
-            // 5. Dynamic Inertial Horizontal Seismic Load Multiplier
-            if (kh > 0) {
-                let F_eq = kh * W;
-                forcesList.push({ name: "Inertial Seismic ($F_{eq}$)", fx: F_eq, fy: 0, x: cx, y: cy, note: "Horizontal load at centroid" });
-            }
-
-            // --- Structural Moment Mechanics Calculations Suite ---
-            let SumFx = 0;
-            let SumFy = 0; // Absolute programmatic summation framework tracking
-            let ResistingMoment = 0;
-            let DrivingMoment = 0;
-
-            forcesList.forEach(f => {
-                SumFx += f.fx;
-                // Net internal axial loading definitions: Downward is positive for stability capacity calculations blocks
-                if(f.name.includes("Uplift")) {
-                    SumFy -= f.fy; // Uplift counters gravity
-                } else {
-                    SumFy += f.fy; 
-                }
-
-                // Compute moment contributions evaluated relative to Downstream Toe Pivot point
-                let armX_fromToe = B - f.x;
-                let armY_fromToe = f.y;
-
-                // Vertical forces
-                if (f.fy !== 0) {
-                    if (f.name.includes("Uplift")) {
-                        // Uplift creates overturning (driving) moment about toe
-                        DrivingMoment += f.fy * armX_fromToe;
-                    } else {
-                        // Downward mass creates stabilizer (resisting) moment about toe
-                        ResistingMoment += Math.abs(f.fy) * armX_fromToe;
-                    }
-                }
-                // Horizontal forces
-                if (f.fx !== 0) {
-                    if (f.fx > 0) {
-                        // Pushing downstream causes overturning about toe
-                        DrivingMoment += f.fx * armY_fromToe;
-                    } else {
-                        // Pushing upstream provides resistance support
-                        ResistingMoment += Math.abs(f.fx) * armY_fromToe;
-                    }
-                }
-            });
-
-            let NetMomentAboutToe = ResistingMoment - DrivingMoment;
-            let N = SumFy; // Net Normal effective compressive load force acting on joint foundation
-            let SumH_driving = forcesList.filter(f => f.fx > 0).reduce((a, b) => a + b.fx, 0) - forcesList.filter(f => f.fx < 0).reduce((a, b) => a + b.fx, 0);
-
-            // Base Structural Length parameters mapping configuration
-            let L_effective = B;
-            let L_uncracked = crackingEnabled ? (B - activeCrack) : B;
-
-            // Compute sliding capacity check rules definitions
-            let tanPhi = Math.tan(phi * Math.PI / 180);
-            let slidingFS = (N * tanPhi + cohesionKsf * L_uncracked) / (SumH_driving || 1);
-
-            // Eccentricity & Base Contact Matrix properties calculation profiling models
-            let resultantFromHeel = 0;
-            if (N > 0) {
-                resultantFromHeel = (NetMomentAboutToe) / N;
-            }
-            let eccentricity = resultantFromHeel - (B / 2);
-            let middleThirdLimit = B / 6;
-
-            // Evaluation of pressure profiles under alternate geometric load distribution schemes
-            let p_base_heel = 0;
-            let p_base_toe = 0;
-            let tensionStateWarning = "COMPRESSION UNIFORM";
-
-            if (Math.abs(eccentricity) <= middleThirdLimit) {
-                // Classic uncracked trapezoidal loading linear distribution rules
-                p_base_heel = (N / B) * (1 - (6 * eccentricity) / B);
-                p_base_toe = (N / B) * (1 + (6 * eccentricity) / B);
-            } else {
-                // Tension state crossed tracking boundary conditions rules
-                tensionStateWarning = "HEEL TENSION STATE TRIGGERED";
-                let distanceToToe = B - resultantFromHeel;
-                
-                if (distanceToToe > 0) {
-                    p_base_toe = (2 * N) / (3 * distanceToToe);
-                    p_base_heel = 0;
-                } else {
-                    p_base_toe = 999; // Total configuration structural imbalance failure
-                    p_base_heel = 0;
-                }
-            }
-
-            // Calculation mapping suggested mathematical convergence index trackers
-            let suggestedCrackLen = 0;
-            let distanceToToe = B - resultantFromHeel;
-            suggestedCrackLen = Math.max(0, B - (3 * distanceToToe));
-
-            // Evaluate regulatory structural performance threshold envelopes criteria parameters
-            let slidingPass = false;
-            let positionPass = false;
-            
-            let reqSliding = 2.0; 
-            if(code === "FERC") {
-                reqSliding = (cohesionKsf > 0) ? (caseNumber===1?3.0:caseNumber===2?2.0:1.3) : (caseNumber===1?1.5:caseNumber===2?1.25:1.1);
-                positionPass = (Math.abs(eccentricity) <= middleThirdLimit);
-            } else if(code === "USACE") {
-                reqSliding = (caseNumber===1?2.0:caseNumber===2?1.7:1.3);
-                positionPass = (Math.abs(eccentricity) <= (B/3)); // USACE allows broader load alignment mapping envelopes
-            } else { // USBR
-                reqSliding = (caseNumber===1?3.0:caseNumber===2?2.0:1.0);
-                positionPass = (Math.abs(eccentricity) <= middleThirdLimit);
-            }
-            slidingPass = (slidingFS >= reqSliding);
-
-            return {
-                caseNumber, code, H, B, a, W, cx, cy, forcesList, SumFx, SumFy, N, SumH_driving,
-                ResistingMoment, DrivingMoment, slidingFS, reqSliding, slidingPass,
-                resultantFromHeel, eccentricity, middleThirdLimit, positionPass,
-                p_base_heel, p_base_toe, tensionStateWarning, suggestedCrackLen, activeCrack, L_uncracked, tanPhi, cohesionKsf
-            };
-        }
-
-        // --- Iterative Convergence Modeler Core Routine Engine ---
-        function iterateCrack() {
-            const currentData = runAnalysisForCase(currentLoadCase);
-            const sug = currentData.suggestedCrackLen;
-            
-            document.getElementById('chkEnableCracking').checked = true;
-            document.getElementById('inpActiveCrack').value = sug.toFixed(2);
-            
-            updateAll();
-            
-            // Re-evaluate matching context delta convergence check metrics criteria bounds
-            const nextData = runAnalysisForCase(currentLoadCase);
-            const delta = Math.abs(nextData.suggestedCrackLen - sug);
-            
-            const ind = document.getElementById('crackConvergenceIndicator');
-            if(delta < 0.05) {
-                ind.innerText = "CONVERGED";
-                ind.style.color = "var(--success)";
-            } else {
-                ind.innerText = "ITERATING MATRIX...";
-                ind.style.color = "var(--warning)";
-            }
-        }
-
-        // --- UI View Field Dispatcher Engine ---
-        function updateUIFields(d) {
-            // Summary KPI Metric Cards Mapping Rendering
-            const slideFSBox = document.getElementById('resSlidingFS');
-            slideFSBox.innerText = d.slidingFS.toFixed(2);
-            document.getElementById('cardSliding').className = "metric-card " + (d.slidingPass ? "pass" : "fail");
-            document.getElementById('lblSlidingStatus').innerText = d.slidingPass ? `PASS (Req > ${d.reqSliding})` : `CRITICAL FAILURE (< ${d.reqSliding})`;
-
-            const resLocBox = document.getElementById('resResultant');
-            resLocBox.innerText = `${d.resultantFromHeel.toFixed(1)} ft`;
-            document.getElementById('cardResultant').className = "metric-card " + (d.positionPass ? "pass" : "fail");
-            document.getElementById('lblResultantStatus').innerText = d.positionPass ? "STABLE POSITION" : "EXCEEDS DESIGN SPEC CRITERIA";
-
-            document.getElementById('resEccentricity').innerText = `${d.eccentricity.toFixed(1)} ft`;
-            document.getElementById('lblEccStatus').innerText = `Limit Boundary Max: ±${d.middleThirdLimit.toFixed(1)} ft`;
-            document.getElementById('cardEccentricity').className = "metric-card " + (Math.abs(d.eccentricity) <= d.middleThirdLimit ? "pass" : "fail");
-
-            // Structural Foundation Contact Pressures View Render
-            document.getElementById('resHeelPress').innerText = `${d.p_base_heel.toFixed(2)} ksf`;
-            document.getElementById('resToePress').innerText = `${d.p_base_toe.toFixed(2)} ksf`;
-            
-            const warningEl = document.getElementById('resTensionWarning');
-            warningEl.innerText = d.tensionStateWarning;
-            warningEl.style.color = d.tensionStateWarning.includes("TENSION") ? "var(--danger)" : "var(--success)";
-
-            document.getElementById('calcSuggestedCrack').innerText = `${d.suggestedCrackLen.toFixed(2)} ft`;
-
-            // Analytical Calculation Structural Equation Formulation Logging Display
-            document.getElementById('calcFormulaBreakdown').innerHTML = `
-                • Normal Force Effective Capacity ($N$) = <strong>${d.N.toFixed(1)} kips</strong><br>
-                • Friction Interface Variable Coefficient ($\tan\phi$) = <strong>${d.tanPhi.toFixed(3)}</strong><br>
-                • Bond Length Contact Horizon ($L_{uncracked}$) = <strong>${d.L_uncracked.toFixed(1)} ft</strong><br>
-                • Lateral Driving Active Horizontal Forces Total ($\Sigma H$) = <strong>${d.SumH_driving.toFixed(1)} kips</strong><br>
-                • Resultant Sliding Capacity Safety Index: <br>
-                &nbsp;&nbsp;[(${d.N.toFixed(1)} × ${d.tanPhi.toFixed(3)}) + (${d.cohesionKsf.toFixed(2)} × ${d.L_uncracked.toFixed(1)})] / ${d.SumH_driving.toFixed(1)} = <strong>${d.slidingFS.toFixed(3)}</strong>
-            `;
-
-            // Overturning Evaluation Methodology Code Selectors Handler Logic
-            const ovBox = document.getElementById('overturningRatioBox');
-            if(d.code === "USBR") {
-                ovBox.style.display = "block";
-                let ratio = d.ResistingMoment / (d.DrivingMoment || 1);
-                document.getElementById('txtOverturningRatio').innerText = `${ratio.toFixed(2)} (Req > ${d.caseNumber===1?'2.0':d.caseNumber===2?'1.5':'1.1'})`;
-            } else {
-                ovBox.style.display = "none";
-            }
-
-            // Dynamic Tabular Matrix Compilation Loop Configuration Generation
-            const tbody = document.getElementById('forcesTableBody');
-            tbody.innerHTML = "";
-            d.forcesList.forEach(f => {
-                let tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td><strong>${f.name}</strong></td>
-                    <td class="text-right">${f.fx.toFixed(1)}</td>
-                    <td class="text-right">${f.fy < 0 ? f.fy.toFixed(1) : (f.fy === 0 ? '0.0' : '-' + f.fy.toFixed(1))}</td>
-                    <td class="text-right">${f.x.toFixed(1)}</td>
-                    <td class="text-right">${f.y.toFixed(1)}</td>
-                    <td><span style="font-size:0.75rem; color:var(--text-muted);">${f.note}</span></td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            // Append Structural Static Equating Control Total Result Row Elements
-            let totalRow = document.createElement('tr');
-            totalRow.style.background = "#e2e8f0";
-            totalRow.style.fontWeight = "bold";
-            totalRow.innerHTML = `
-                <td>System Totals Matrix (Effective Resultant Net)</td>
-                <td class="text-right">${d.SumFx.toFixed(1)}</td>
-                <td class="text-right">-${d.N.toFixed(1)}</td>
-                <td class="text-right" colspan="3" style="font-size:0.75rem; text-align:center;">Effective Design Normal Compressive Vector ($N$) = ${d.N.toFixed(1)} kips</td>
-            `;
-            tbody.appendChild(totalRow);
-        }
-
-        // --- Graphic Structural Vector Rendering Engine ---
-        function renderCanvases() {
-            renderMappingCanvas();
-            renderForcesCanvas();
-        }
-
-        function renderMappingCanvas() {
-            const cvs = document.getElementById('mappingCanvas');
-            const mCtx = cvs.getContext('2d');
-            mCtx.clearRect(0,0,cvs.width,cvs.height);
-
-            // Render uploaded screenshot reference trace context frame layer background layer if present
-            if(baseImg) {
-                mCtx.drawImage(baseImg, 0,0, cvs.width, cvs.height);
-            } else {
-                mCtx.fillStyle = "#cbd5e1";
-                mCtx.fillRect(0,0,cvs.width,cvs.height);
-                mCtx.fillStyle = "#475569";
-                mCtx.font = "14px sans-serif";
-                mCtx.fillText("No section screenshot loaded background trace layer active.", 40, cvs.height/2);
-            }
-
-            // Render active tracking geometric profile alignment boundaries paths trace layer
-            mCtx.beginPath();
-            mCtx.moveTo(nodes[0].x, nodes[0].y);
-            for(let i=1; i<nodes.length; i++) mCtx.lineTo(nodes[i].x, nodes[i].y);
-            mCtx.closePath();
-            mCtx.fillStyle = "rgba(13, 148, 136, 0.35)";
-            mCtx.fill();
-            mCtx.lineWidth = 3;
-            mCtx.strokeStyle = "var(--accent)";
-            mCtx.stroke();
-
-            // Trace interactive structural handle points markers mapping arrays elements UI loop
-            const handleColors = ["#dc2626", "#2563eb", "#9333ea", "#16a34a"];
-            nodes.forEach((n, idx) => {
-                mCtx.beginPath();
-                mCtx.arc(n.x, n.y, 8, 0, 2*Math.PI);
-                mCtx.fillStyle = handleColors[idx];
-                mCtx.fill();
-                mCtx.strokeStyle = "#ffffff";
-                mCtx.lineWidth = 2;
-                mCtx.stroke();
-
-                mCtx.fillStyle = "#0f172a";
-                mCtx.font = "bold 11px sans-serif";
-                mCtx.fillText(n.label, n.x + 12, n.y + 4);
-            });
-        }
-
-        function renderForcesCanvas() {
-            const cvs = document.getElementById('forcesCanvas');
-            const fCtx = cvs.getContext('2d');
-            fCtx.clearRect(0,0,cvs.width,cvs.height);
-
-            const d = runAnalysisForCase(currentLoadCase);
-
-            // Establish proportional scale metrics maps matching core layout boundary rules
-            let pad = 60;
-            let drawW = cvs.width - 2*pad;
-            let drawH = cvs.height - 2*pad;
-
-            // Operational coordinate mappings helpers scale transforms translation variables blocks
-            let scaleX = drawW / d.B;
-            let scaleY = drawH / d.H;
-            let scaleFactor = Math.min(scaleX, scaleY);
-
-            function tx(realX) { return pad + realX * scaleFactor; }
-            function ty(realY) { return cvs.height - pad - realY * scaleFactor; }
-
-            // Trace concrete block profile configuration
-            fCtx.beginPath();
-            fCtx.moveTo(tx(0), ty(0));
-            fCtx.lineTo(tx(0), ty(d.H));
-            fCtx.lineTo(tx(d.a), ty(d.H));
-            fCtx.lineTo(tx(d.B), ty(0));
-            fCtx.closePath();
-            fCtx.fillStyle = "#94a3b8";
-            fCtx.fill();
-            fCtx.lineWidth = 2;
-            fCtx.strokeStyle = "#475569";
-            fCtx.stroke();
-
-            // Overlay water line layers visuals references limits indicators boundaries geometry profiles maps vectors
-            let hw = (currentLoadCase===1)?(parseFloat(document.getElementById('case1_hw').value)):(currentLoadCase===2?(parseFloat(document.getElementById('case2_hw').value)):(parseFloat(document.getElementById('case3_hw').value)));
-            let tw = (currentLoadCase===1)?(parseFloat(document.getElementById('case1_tw').value)):(currentLoadCase===2?(parseFloat(document.getElementById('case2_tw').value)):(parseFloat(document.getElementById('case3_tw').value)));
-
-            if(hw > 0) {
-                fCtx.fillStyle = "rgba(37, 99, 235, 0.2)";
-                fCtx.fillRect(tx(-15), ty(hw), tx(0)-tx(-15), ty(0)-ty(hw));
-                fCtx.beginPath(); fCtx.moveTo(tx(-20), ty(hw)); fCtx.lineTo(tx(0), ty(hw)); fCtx.strokeStyle = "#2563eb"; fCtx.stroke();
-            }
-            if(tw > 0) {
-                fCtx.fillStyle = "rgba(37, 99, 235, 0.2)";
-                fCtx.fillRect(tx(d.B), ty(tw), tx(d.B+10)-tx(d.B), ty(0)-ty(tw));
-                fCtx.beginPath(); fCtx.moveTo(tx(d.B), ty(tw)); fCtx.lineTo(tx(d.B+15), ty(tw)); fCtx.strokeStyle = "#2563eb"; fCtx.stroke();
-            }
-
-            // Visual vector drawing tool function wrapper standard template
-            function drawArrow(x0, y0, x1, y1, color, label) {
-                fCtx.strokeStyle = color;
-                fCtx.fillStyle = color;
-                fCtx.lineWidth = 3;
-                fCtx.beginPath(); fCtx.moveTo(x0, y0); fCtx.lineTo(x1, y1); fCtx.stroke();
-                
-                let angle = Math.atan2(y1 - y0, x1 - x0);
-                fCtx.beginPath();
-                fCtx.moveTo(x1, y1);
-                fCtx.lineTo(x1 - 10 * Math.cos(angle - Math.PI/6), y1 - 10 * Math.sin(angle - Math.PI/6));
-                fCtx.lineTo(x1 - 10 * Math.cos(angle + Math.PI/6), y1 - 10 * Math.sin(angle + Math.PI/6));
-                fCtx.closePath(); fCtx.fill();
-
-                fCtx.fillStyle = "#0f172a";
-                fCtx.font = "bold 10px sans-serif";
-                fCtx.fillText(label, x0 + (x1-x0)*0.2, y0 + (y1-y0)*0.2 - 5);
-            }
-
-            // Draw system load configuration markers maps vectors
-            d.forcesList.forEach(f => {
-                let fxCoord = tx(f.x);
-                let fyCoord = ty(f.y);
-
-                if(f.name.includes("Weight")) {
-                    drawArrow(fxCoord, fyCoord - 40, fxCoord, fyCoord, "rgba(22, 163, 74, 0.85)", "W");
-                } else if(f.name.includes("Headwater")) {
-                    drawArrow(tx(-35), ty(hw/3), tx(0), ty(hw/3), "rgba(37, 99, 235, 0.85)", "P_hw");
-                } else if(f.name.includes("Tailwater")) {
-                    drawArrow(tx(d.B + 35), ty(tw/3), tx(d.B), ty(tw/3), "rgba(37, 99, 235, 0.85)", "P_tw");
-                } else if(f.name.includes("Uplift")) {
-                    drawArrow(fxCoord, ty(0) + 40, fxCoord, ty(0), "rgba(220, 38, 38, 0.85)", "Uplift Force");
-                } else if(f.name.includes("Seismic")) {
-                    drawArrow(fxCoord - 45, fyCoord, fxCoord, fyCoord, "rgba(147, 51, 234, 0.85)", "F_eq (Seismic)");
-                }
-            });
-
-            // Mark effective structural load axis location tick marker metrics properties
-            fCtx.beginPath();
-            fCtx.arc(tx(d.resultantFromHeel), ty(0), 6, 0, 2*Math.PI);
-            fCtx.fillStyle = "#f97316";
-            fCtx.fill();
-            fCtx.strokeStyle = "#ffffff"; fCtx.lineWidth = 1.5; fCtx.stroke();
-            fCtx.fillStyle = "#f97316"; fCtx.font = "bold 11px sans-serif";
-            fCtx.fillText("R", tx(d.resultantFromHeel) - 4, ty(0) - 10);
-        }
-
-        // --- Anthropic Vision Extraction Controller API Bridge Integration Pipeline ---
-        async function runAIVision() {
-            const apiKey = sessionStorage.getItem('damstab_ant_key');
-            if(!apiKey) { alert("Configure API key configuration details first."); return; }
-            if(!baseImg) { alert("Upload a cross-section layout target visualization screenshot trace image sequence first."); return; }
-
-            const statusEl = document.getElementById('visionStatus');
-            statusEl.innerText = "PARSING ASSET INFRASTRUCTURE VIA CLAUDE VISION PIPELINE...";
-            statusEl.style.color = "var(--warning)";
-
-            // Convert raw source node element reference properties data to standard base64 string format block configuration models
-            let base64Data = baseImg.src.split(',')[1];
-            let mediaType = baseImg.src.split(';')[0].split(':')[1];
-
-            const systemPrompt = `You are an expert structural dam engineering assistant. Analyze the uploaded gravity dam cross section image.
-Extract all possible dimensional and material values. Return ONLY a valid JSON object matching exactly these keys with numeric values or null if not visible. Do not include markdown wraps, code fences, or text outside the raw JSON content:
-{
-  "damHeight": 60,
-  "baseWidth": 45,
-  "topWidth": 6,
-  "concreteUnitWeight": 150,
-  "frictionAngle": 40,
-  "cohesion": 5.0,
-  "drainDistance": 10,
-  "drainEfficiency": 0.5,
-  "headwater": 58,
-  "tailwater": 5
-}`;
-
-            try {
-                const response = await fetch("https://api.anthropic.com/v1/messages", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "x-api-key": apiKey,
-                        "anthropic-version": "2023-06-01",
-                        "anthropic-dangerous-direct-browser-access": "true"
-                    },
-                    body: JSON.stringify({
-                        model: document.getElementById('cfgModel').value,
-                        max_tokens: 1200,
-                        messages: [
-                            {
-                                role: "user",
-                                content: [
-                                    {
-                                        type: "image",
-                                        source: {
-                                            type: "base64",
-                                            media_type: mediaType,
-                                            data: base64Data
-                                        }
-                                    },
-                                    {
-                                        type: "text",
-                                        text: "Extract structural parameters from this dam cross-section graphic image into raw data metrics format."
-                                    }
-                                ]
-                            }
-                        ],
-                        system: systemPrompt
-                    })
-                });
-
-                if(!response.ok) throw new Error(`HTTP System Communication Error: Status ${response.status}`);
-                
-                const resData = await response.json();
-                let txtResult = resData.content[0].text.trim();
-                
-                // Clean markdown code blocks if the model ignored system prompts and appended formatting fences
-                if(txtResult.startsWith("```json")) txtResult = txtResult.replace("```json", "").replace("```", "");
-                else if(txtResult.startsWith("```")) txtResult = txtResult.replace(/```/g, "");
-
-                aiInferredData = JSON.parse(txtResult.trim());
-                
-                statusEl.innerText = "EXTRACTION SUCCESSFUL";
-                statusEl.style.color = "var(--success)";
-                
-                // Print attributes summary listing cards views rendering elements updates bounds
-                const bCard = document.getElementById('aiExtractedCard');
-                const bContent = document.getElementById('aiBadges');
-                bCard.style.display = "block";
-                bContent.innerHTML = "";
-                
-                for (const [k, v] of Object.entries(aiInferredData)) {
-                    if(v !== null) {
-                        bContent.innerHTML += `<div><strong>${k}</strong>: <span class="badge badge-success">${v}</span></div>`;
-                    }
-                }
-
-            } catch (err) {
-                console.error(err);
-                statusEl.innerText = "PARSING PIPELINE ERROR EXCEPTION MET: " + err.message;
-                statusEl.style.color = "var(--danger)";
-            }
-        }
-
-        function applyAIExtractions() {
-            if(!aiInferredData) return;
-            if(aiInferredData.damHeight) document.getElementById('inpH').value = aiInferredData.damHeight;
-            if(aiInferredData.baseWidth) document.getElementById('inpB').value = aiInferredData.baseWidth;
-            if(aiInferredData.topWidth) document.getElementById('inpA').value = aiInferredData.topWidth;
-            if(aiInferredData.concreteUnitWeight) document.getElementById('inpGammaC').value = aiInferredData.concreteUnitWeight;
-            if(aiInferredData.frictionAngle) document.getElementById('inpPhi').value = aiInferredData.frictionAngle;
-            if(aiInferredData.cohesion) document.getElementById('inpCohesion').value = aiInferredData.cohesion;
-            if(aiInferredData.drainDistance) document.getElementById('inpDrainDist').value = aiInferredData.drainDistance;
-            if(aiInferredData.drainEfficiency) document.getElementById('inpDrainEff').value = aiInferredData.drainEfficiency;
-
-            if(aiInferredData.headwater) {
-                document.getElementById('case1_hw').value = aiInferredData.headwater;
-                document.getElementById('case3_hw').value = aiInferredData.headwater;
-            }
-            if(aiInferredData.tailwater) {
-                document.getElementById('case1_tw').value = aiInferredData.tailwater;
-                document.getElementById('case3_tw').value = aiInferredData.tailwater;
-            }
-
-            alert("Structural system variables properties pre-loaded from inference engine layers data targets maps successfully.");
-            updateAll();
-        }
-
-        // --- Export Multi-Case Analytical CSV Report Document Utility Routine ---
-        function exportResultsCSV() {
-            let cases = [1, 2, 3];
-            let csvRows = [];
-            csvRows.push("DamStab Structural Screening Analysis System Summary Report");
-            csvRows.push(`Generated Framework Timestamp Scope Era,2026`);
-            csvRows.push("");
-            csvRows.push("Load Case ID,Design Code Standard,Dam Height (ft),Base Width (ft),Sliding FS,Required Min FS,Status Verification,Resultant from Heel (ft),Eccentricity (ft),Heel Pressure (ksf),Toe Pressure (ksf)");
-
-            cases.forEach(cId => {
-                let d = runAnalysisForCase(cId);
-                let label = cId === 1 ? "Usual" : (cId === 2 ? "Unusual" : "Extreme");
-                csvRows.push(`${label},${d.code},${d.H},${d.B},${d.slidingFS.toFixed(2)},${d.reqSliding},${d.slidingPass?'PASS':'FAIL'},${d.resultantFromHeel.toFixed(1)},${d.eccentricity.toFixed(1)},${d.p_base_heel.toFixed(2)},${d.p_base_toe.toFixed(2)}`);
-            });
-
-            let csvContent = "data:text/csv;charset=utf-8," + csvRows.join("\n");
-            let encodedUri = encodeURI(csvContent);
-            let link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", "DamStab_Structural_Screening_Report.csv");
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-    </script>
+      }
+
+      // Resultant label
+      const upliftF = loads.vForces.find(f => f.label && f.label.includes('Uplift'));
+      if (upliftF) {
+        const midX = (heelPx + toePx) / 2;
+        const midDepth = (upliftH + upliftT) / 2;
+        ctx.fillStyle = '#c0392b'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
+        ctx.fillText('U = ' + Math.abs(upliftF.F).toFixed(2) + ' k/ft', midX, baseY + midDepth * 0.5 + 14);
+      }
+      ctx.textAlign = 'left';
+    }
+  }
+
+  // === WEIGHT arrow (green, from centroid downward) ===
+  {
+    const cx = loads.cx, cy = loads.cy;
+    const aLen = Math.min(py(p.baseElev) - py(cy) - 10, 70); // arrow length
+    ctx.strokeStyle = '#1a7a3a'; ctx.lineWidth = 3;
+    arrow(ctx, px(cx), py(cy) - aLen * 0.4, px(cx), py(cy) + aLen * 0.6, 10);
+    ctx.fillStyle = '#1a7a3a'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('W = ' + weight.toFixed(2) + ' k/ft', px(cx), py(cy) - aLen * 0.4 - 7);
+    ctx.textAlign = 'left';
+  }
+
+  // === HW pressure triangle (extends LEFT from heel) ===
+  if (hd > 0) {
+    const heelX  = px(heel);
+    const baseY  = py(p.baseElev);
+    const topY   = py(p.baseElev + hd);           // water surface (zero pressure)
+    const triW   = hwIntensity * pressScale;       // pixel width at base = γ×hd × scale
+
+    // Triangle: zero at top, max at base
+    ctx.beginPath();
+    ctx.moveTo(heelX, topY);                       // tip at waterline
+    ctx.lineTo(heelX - triW, baseY);               // max pressure at base
+    ctx.lineTo(heelX, baseY);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(26,108,199,0.22)';
+    ctx.fill();
+    ctx.strokeStyle = '#1a6cc7'; ctx.lineWidth = 1.8;
+    ctx.stroke();
+
+    // Baseline tick
+    ctx.beginPath();
+    ctx.moveTo(heelX - triW, baseY - 4);
+    ctx.lineTo(heelX - triW, baseY + 4);
+    ctx.strokeStyle = '#1a6cc7'; ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Resultant arrow at h/3 from base (pressure there = γ × 2h/3, width = 2/3 × triW)
+    const yRes    = py(p.baseElev + hd / 3);
+    const resW    = (2 / 3) * triW;   // width of triangle at h/3 from base
+    ctx.strokeStyle = '#1a6cc7'; ctx.lineWidth = 2.5;
+    ctx.fillStyle   = '#1a6cc7';
+    arrow(ctx, heelX - resW - 20, yRes, heelX, yRes, 9);
+
+    // Labels
+    ctx.font = 'bold 11px monospace'; ctx.textAlign = 'right';
+    const FHW = loads.hForces.find(f => f.label.includes('Headwater'));
+    if (FHW) ctx.fillText('HW = ' + FHW.F.toFixed(2) + ' k/ft', heelX - resW - 24, yRes - 5);
+    ctx.font = '9px monospace';
+    ctx.fillText(hwIntensity.toFixed(2) + ' ksf', heelX - triW - 4, baseY + 12);
+    ctx.textAlign = 'left';
+  }
+
+  // === TW pressure triangle (extends RIGHT from toe) ===
+  if (td > 0) {
+    const toeX    = px(toe);
+    const baseY   = py(p.baseElev);
+    const topY    = py(p.baseElev + td);
+    const twIntensity = (p.waterUW || 62.4) * td / 1000;
+    const triW    = twIntensity * pressScale;
+
+    ctx.beginPath();
+    ctx.moveTo(toeX, topY);
+    ctx.lineTo(toeX + triW, baseY);
+    ctx.lineTo(toeX, baseY);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(85,153,221,0.22)';
+    ctx.fill();
+    ctx.strokeStyle = '#5599dd'; ctx.lineWidth = 1.8;
+    ctx.stroke();
+
+    // Baseline tick
+    ctx.beginPath();
+    ctx.moveTo(toeX + triW, baseY - 4);
+    ctx.lineTo(toeX + triW, baseY + 4);
+    ctx.strokeStyle = '#5599dd'; ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Resultant arrow at td/3 from base
+    const yRes = py(p.baseElev + td / 3);
+    const resW = (2 / 3) * triW;
+    ctx.strokeStyle = '#5599dd'; ctx.lineWidth = 2;
+    ctx.fillStyle   = '#5599dd';
+    arrow(ctx, toeX + resW + 20, yRes, toeX, yRes, 8);
+
+    ctx.font = 'bold 11px monospace'; ctx.textAlign = 'left';
+    const FTW = loads.hForces.find(f => f.label.includes('Tailwater'));
+    if (FTW) ctx.fillText('TW = ' + Math.abs(FTW.F).toFixed(2) + ' k/ft', toeX + resW + 24, yRes - 5);
+    ctx.font = '9px monospace';
+    ctx.fillText(twIntensity.toFixed(2) + ' ksf', toeX + triW + 4, baseY + 12);
+    ctx.textAlign = 'left';
+  }
+
+  // === SEISMIC arrow ===
+  const eqF = loads.hForces.find(f => f.label.includes('Seismic'));
+  if (eqF) {
+    const cx   = loads.cx, cy = loads.cy;
+    const ySeis = py(cy);
+    ctx.strokeStyle = '#7b2fbe'; ctx.fillStyle = '#7b2fbe'; ctx.lineWidth = 2.5;
+    arrow(ctx, px(heel) - 40, ySeis, px(heel), ySeis, 9);
+    ctx.font = 'bold 11px monospace'; ctx.textAlign = 'right';
+    ctx.fillText('EQ = ' + eqF.F.toFixed(2) + ' k/ft', px(heel) - 44, ySeis - 5);
+    ctx.textAlign = 'left';
+  }
+
+  // === WESTERGAARD pressure curve ===
+  if (p.useWestergaard && p.kh > 0 && hd > 0) {
+    const heelX = px(heel);
+    const baseY = py(p.baseElev);
+    const topY  = py(p.baseElev + hd);
+    // max intensity at base: p(hd) = 0.726 * kh * γw * hd (psf) = 0.726 * kh * hwIntensity (ksf)
+    const wgMaxIntensity = 0.726 * p.kh * hwIntensity;
+    const wgMaxW = wgMaxIntensity * pressScale; // pixels at base
+
+    // Draw parabolic (sqrt) curve: offset leftward from heel
+    // at canvas y-position yc (between topY and baseY), depth = (yc - topY)/(baseY - topY) * hd
+    const steps = 40;
+    ctx.beginPath();
+    ctx.moveTo(heelX, topY); // zero at water surface
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps; // 0..1, fraction of depth
+      const yc = topY + t * (baseY - topY);
+      const w  = wgMaxW * Math.sqrt(t); // parabolic (Westergaard)
+      ctx.lineTo(heelX - w, yc);
+    }
+    ctx.lineTo(heelX, baseY);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(123,47,190,0.15)';
+    ctx.fill();
+    ctx.strokeStyle = '#7b2fbe'; ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Label at base
+    ctx.font = '9px monospace'; ctx.textAlign = 'right'; ctx.fillStyle = '#7b2fbe';
+    ctx.fillText(wgMaxIntensity.toFixed(3) + ' ksf', heelX - wgMaxW - 4, baseY + 12);
+    ctx.font = '9px monospace';
+    ctx.fillText('Westergaard', heelX - wgMaxW / 2, topY - 4);
+    ctx.textAlign = 'left';
+  }
+
+  // === SILT / SOIL build-up triangles (#7) ===
+  // Upstream silt: pressure triangle against the upstream face (zero at silt surface, max at base)
+  if (p.hasUpstreamSilt && p.siltUpElev > p.baseElev) {
+    const heelX = px(heel);
+    const baseY = py(p.baseElev);
+    const hsTop = Math.min(p.siltUpElev, Math.max(...allY));
+    const topY  = py(hsTop);
+    const hs    = hsTop - p.baseElev;
+    const Ka    = Math.pow(Math.tan((45 - p.siltUpPhi / 2) * Math.PI / 180), 2);
+    const siltIntensity = Ka * p.siltUpUW * hs / 1000;     // ksf at base
+    const triW  = siltIntensity * pressScale;
+    // Solid build-up wedge (light brown), then the pressure triangle outline
+    ctx.beginPath();
+    ctx.moveTo(heelX, topY);
+    ctx.lineTo(heelX - triW, baseY);
+    ctx.lineTo(heelX, baseY);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(139,105,20,0.30)';
+    ctx.fill();
+    ctx.strokeStyle = '#8B6914'; ctx.lineWidth = 1.6; ctx.stroke();
+    // Hatch the silt deposit itself just upstream of the heel
+    ctx.fillStyle = 'rgba(139,105,20,0.16)';
+    ctx.beginPath();
+    ctx.moveTo(heelX, baseY);
+    ctx.lineTo(heelX, topY);
+    ctx.lineTo(heelX - triW * 0.9, topY);
+    ctx.closePath();
+    ctx.fill();
+    // Resultant arrow at hs/3
+    const ySilt = py(p.baseElev + hs / 3);
+    const resW  = (2 / 3) * triW;
+    ctx.strokeStyle = '#8B6914'; ctx.fillStyle = '#8B6914'; ctx.lineWidth = 2;
+    arrow(ctx, heelX - resW - 18, ySilt, heelX, ySilt, 7);
+    const siltF = loads.hForces.find(f => f.label.includes('Silt'));
+    ctx.font = 'bold 10px monospace'; ctx.textAlign = 'right';
+    if (siltF) ctx.fillText('S = ' + siltF.F.toFixed(2) + ' k/ft', heelX - resW - 22, ySilt - 4);
+    ctx.font = '9px monospace';
+    ctx.fillText('silt EL ' + p.siltUpElev.toFixed(0), heelX - triW - 4, topY + 10);
+    ctx.textAlign = 'left';
+  }
+  // Downstream soil build-up (visual passive wedge against the toe)
+  if (p.hasDownstreamSoil && p.siltDnElev > p.baseElev) {
+    const toeX  = px(toe);
+    const baseY = py(p.baseElev);
+    const hsTop = Math.min(p.siltDnElev, Math.max(...allY));
+    const topY  = py(hsTop);
+    const hs    = hsTop - p.baseElev;
+    const Kp    = Math.pow(Math.tan((45 + p.siltDnPhi / 2) * Math.PI / 180), 2);
+    const soilIntensity = Kp * p.siltDnUW * hs / 1000;
+    const triW  = Math.min(soilIntensity * pressScale, B * s * 0.4);
+    ctx.beginPath();
+    ctx.moveTo(toeX, topY);
+    ctx.lineTo(toeX + triW, baseY);
+    ctx.lineTo(toeX, baseY);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(120,90,40,0.22)';
+    ctx.fill();
+    ctx.strokeStyle = '#785a28'; ctx.lineWidth = 1.4; ctx.stroke();
+    ctx.fillStyle = '#785a28'; ctx.font = '9px monospace'; ctx.textAlign = 'left';
+    ctx.fillText('soil EL ' + p.siltDnElev.toFixed(0), toeX + 4, topY + 10);
+    ctx.textAlign = 'left';
+  }
+
+  // === ICE thrust arrow (#11) ===
+  const iceF = loads.hForces.find(f => f.label.includes('Ice'));
+  if (iceF) {
+    const iceEl = (p.iceElev !== null && p.iceElev !== undefined) ? p.iceElev : p[LOAD_CASES[res.caseKey].hwKey];
+    const yIce = py(iceEl);
+    ctx.strokeStyle = '#1f7a99'; ctx.fillStyle = '#1f7a99'; ctx.lineWidth = 2.5;
+    arrow(ctx, px(heel) - 36, yIce, px(heel), yIce, 8);
+    ctx.font = 'bold 10px monospace'; ctx.textAlign = 'right';
+    ctx.fillText('Ice = ' + iceF.F.toFixed(2) + ' k/ft', px(heel) - 40, yIce - 4);
+    ctx.textAlign = 'left';
+  }
+
+  // === Additional vertical loads (#5) — small green down-arrows ===
+  loads.vForces.filter(f => f.note && f.note.includes('added load')).forEach(f => {
+    const xAbs = toe - f.arm;
+    const xTop = py(Math.max(...allY)) - 22;
+    ctx.strokeStyle = '#0c7a4a'; ctx.fillStyle = '#0c7a4a'; ctx.lineWidth = 2;
+    arrow(ctx, px(xAbs), xTop - 16, px(xAbs), xTop + 4, 7);
+    ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(f.label + ' ' + f.F.toFixed(1), px(xAbs), xTop - 20);
+    ctx.textAlign = 'left';
+  });
+
+  // === DRAIN line ===
+  if (p.hasDrain) {
+    const dr = heel + p.drainDist;
+    ctx.strokeStyle = '#888'; ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(px(dr), py(p.baseElev));
+    ctx.lineTo(px(dr), py(p.baseElev) + 40);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#888'; ctx.font = '9px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText('drain', px(dr), py(p.baseElev) + 52);
+    ctx.textAlign = 'left';
+  }
+
+  // === ELEVATION labels ===
+  const hw_key = LOAD_CASES[res.caseKey].hwKey;
+  ctx.fillStyle = '#1a6cc7'; ctx.font = '11px system-ui';
+  ctx.setLineDash([5, 4]); ctx.strokeStyle = '#1a6cc7'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad - 10, py(p[hw_key]));
+  ctx.lineTo(px(heel), py(p[hw_key]));
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillText('EL ' + p[hw_key].toFixed(0) + ' ft (HW)', pad - 8, py(p[hw_key]) - 3);
+
+  if (td > 0) {
+    const tw_key = LOAD_CASES[res.caseKey].twKey;
+    ctx.fillStyle = '#5599dd'; ctx.font = '11px system-ui';
+    ctx.setLineDash([5, 4]); ctx.strokeStyle = '#5599dd'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(px(toe), py(p[tw_key]));
+    ctx.lineTo(W - pad + 10, py(p[tw_key]));
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillText('EL ' + p[tw_key].toFixed(0) + ' ft (TW)', px(toe) + 4, py(p[tw_key]) - 3);
+  }
+
+  // === BASE labels ===
+  ctx.fillStyle = '#444'; ctx.font = '11px system-ui'; ctx.textAlign = 'center';
+  ctx.fillText('Heel', px(heel), py(p.baseElev) + 16);
+  ctx.fillText('Toe',  px(toe),  py(p.baseElev) + 16);
+  ctx.fillText('B = ' + B.toFixed(2) + ' ft', px((heel + toe) / 2), py(p.baseElev) + 28);
+  ctx.textAlign = 'left';
+
+  // === SCALE LEGEND (#13) ===
+  drawScaleLegend(ctx, W, H, s);
+}
+
+// === PAN SUPPORT FOR LOAD CANVAS ===
+function togglePan() {
+  state.panMode = !state.panMode;
+  const btn = document.getElementById('panBtn');
+  const lc = document.getElementById('loadCanvas');
+  if (state.panMode) {
+    btn.style.background = '#1a6cc7'; btn.style.color = '#fff';
+    lc.style.cursor = 'grab';
+  } else {
+    btn.style.background = ''; btn.style.color = '';
+    lc.style.cursor = 'default';
+  }
+}
+function resetPan() {
+  state.panOffset = { x: 0, y: 0 };
+  const _rr = state.results?.[state.activeResultTab] || state.results?.['usual'];
+  if (_rr) { drawLoadDiagram(_rr); renderLoadTable(_rr); }
+}
+function initLoadCanvasPan() {
+  const lc = document.getElementById('loadCanvas');
+  lc.addEventListener('mousedown', e => {
+    if (!state.panMode) return;
+    state.panDragging = true;
+    state.panStart = { x: e.clientX - state.panOffset.x, y: e.clientY - state.panOffset.y };
+    lc.style.cursor = 'grabbing';
+  });
+  lc.addEventListener('mousemove', e => {
+    if (!state.panMode || !state.panDragging) return;
+    state.panOffset.x = e.clientX - state.panStart.x;
+    state.panOffset.y = e.clientY - state.panStart.y;
+    const _pr = state.results?.[state.activeResultTab] || state.results?.['usual'];
+    if (_pr) { drawLoadDiagram(_pr); renderLoadTable(_pr); }
+  });
+  lc.addEventListener('mouseup', () => { state.panDragging = false; if (state.panMode) document.getElementById('loadCanvas').style.cursor = 'grab'; });
+  lc.addEventListener('mouseleave', () => { state.panDragging = false; });
+}
+
+// === FIGURE GRID + SCALE LEGEND (#13) ===
+function niceStep(pxPerFt, targetPx = 60) {
+  const raw = targetPx / pxPerFt;
+  const pow = Math.pow(10, Math.floor(Math.log10(raw)));
+  const cand = [1, 2, 2.5, 5, 10].map(m => m * pow);
+  let best = cand[0];
+  for (const c of cand) {
+    if (Math.abs(c * pxPerFt - targetPx) < Math.abs(best * pxPerFt - targetPx)) best = c;
+  }
+  return best;
+}
+function drawFigGrid(ctx, W, H, px, py, minX, maxX, minY, maxY, s) {
+  const step = niceStep(s);
+  ctx.save();
+  ctx.strokeStyle = 'rgba(0,0,0,0.07)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([2, 3]);
+  for (let x = Math.ceil(minX / step) * step; x <= maxX; x += step) {
+    const xp = px(x);
+    ctx.beginPath(); ctx.moveTo(xp, 0); ctx.lineTo(xp, H); ctx.stroke();
+  }
+  for (let y = Math.ceil(minY / step) * step; y <= maxY; y += step) {
+    const yp = py(y);
+    ctx.beginPath(); ctx.moveTo(0, yp); ctx.lineTo(W, yp); ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+function drawScaleLegend(ctx, W, H, s) {
+  const raw = 80 / s;
+  const pow = Math.pow(10, Math.floor(Math.log10(raw)));
+  const cand = [1, 2, 5, 10, 20, 25, 50, 100].map(m => m * pow);
+  let barFt = cand[0];
+  for (const c of cand) {
+    if (Math.abs(c * s - 80) < Math.abs(barFt * s - 80)) barFt = c;
+  }
+  const barPx = barFt * s;
+  const x2 = W - 16, x1 = x2 - barPx, y = H - 16;
+  ctx.save();
+  ctx.strokeStyle = '#333'; ctx.fillStyle = '#333'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x2, y); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x1, y - 4); ctx.lineTo(x1, y + 4);
+  ctx.moveTo(x2, y - 4); ctx.lineTo(x2, y + 4);
+  ctx.stroke();
+  ctx.font = '10px system-ui'; ctx.textAlign = 'center';
+  ctx.fillText(barFt + ' ft', (x1 + x2) / 2, y - 5);
+  ctx.textAlign = 'left';
+  ctx.restore();
+}
+
+function arrow(ctx, x1, y1, x2, y2, size) {
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+  const angle = Math.atan2(y2 - y1, x2 - x1);
+  ctx.beginPath();
+  ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - size * Math.cos(angle - 0.4), y2 - size * Math.sin(angle - 0.4));
+  ctx.lineTo(x2 - size * Math.cos(angle + 0.4), y2 - size * Math.sin(angle + 0.4));
+  ctx.closePath();
+  ctx.fill();
+}
+
+function renderLoadTable(res) {
+  const { loads } = res;
+  const el = document.getElementById('loadTableContent');
+
+  const vRows = loads.vForces.map(f =>
+    `<tr><td>${f.label}</td><td class="td-mono">${f.F >= 0 ? '+' : ''}${f.F.toFixed(2)}</td><td class="td-mono">${f.arm.toFixed(2)}</td><td class="td-mono">${f.moment.toFixed(2)}</td><td style="color:#888;font-size:11px">${f.note}</td></tr>`
+  ).join('');
+  const hRows = loads.hForces.map(f =>
+    `<tr><td>${f.label}</td><td class="td-mono">${f.F >= 0 ? '+' : ''}${f.F.toFixed(2)}</td><td class="td-mono">${f.arm.toFixed(2)}</td><td class="td-mono">${f.moment.toFixed(2)}</td><td style="color:#888;font-size:11px">${f.note}</td></tr>`
+  ).join('');
+
+  el.innerHTML = `
+    <div style="margin-bottom:10px">
+      <strong>Vertical Forces</strong> (moments about toe, kips/ft and kip·ft/ft)
+      <table style="margin-top:6px">
+        <thead><tr><th>Load</th><th>Force (k/ft)</th><th>Arm from Toe (ft)</th><th>Moment (k·ft/ft)</th><th>Note</th></tr></thead>
+        <tbody>
+          ${vRows}
+          <tr class="tr-sum"><td>&#931;V</td><td class="td-mono">${loads.sumV.toFixed(2)}</td><td>—</td><td class="td-mono">${loads.sumMV.toFixed(2)}</td><td></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <strong>Horizontal Forces</strong> (moments about base, kips/ft and kip·ft/ft)
+      <table style="margin-top:6px">
+        <thead><tr><th>Load</th><th>Force (k/ft)</th><th>Arm from Base (ft)</th><th>Moment (k·ft/ft)</th><th>Note</th></tr></thead>
+        <tbody>
+          ${hRows}
+          <tr class="tr-sum"><td>&#931;H</td><td class="td-mono">${loads.sumH.toFixed(2)}</td><td>—</td><td class="td-mono">${loads.sumMH.toFixed(2)}</td><td></td></tr>
+        </tbody>
+      </table>
+    </div>`;
+}
+
+// === RESULTS TAB ===
+function selResultCase(i, btn) {
+  btn.parentNode.querySelectorAll('.ctab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  showResultCase(i);
+}
+
+function showResultCase(idx) {
+  if (!state.analysisRan) return;
+  const caseKeys = ['usual', 'flood', 'seismic', 'extreme'];
+  const key = caseKeys[idx];
+  const res = state.results[key];
+  if (!res) return;
+  renderResultArea(res);
+}
+
+function renderResultArea(res) {
+  const { stability: st, loads, p, caseKey } = res;
+  const code = p.designCode;
+  const crit = CRITERIA[code][caseKey];
+  const lc = LOAD_CASES[caseKey];
+
+  const fs_ok = st.FS_slide >= crit.fs_slide;
+  const ot_ok = crit.fs_overturn === null ? true : st.FS_OT >= crit.fs_overturn;
+  const res_ok = crit.resultant === 'middle_third' ? st.inMiddleThird :
+                 crit.resultant === 'middle_half'  ? st.inMiddleHalf :
+                 st.onBase;
+  const heel_ok = st.sigma_heel >= -1;
+  const allOk = fs_ok && ot_ok && res_ok && heel_ok;
+
+  const fmtFS = v => isFinite(v) ? v.toFixed(2) : '&#8734;';
+  const badge = ok => ok ? '<span class="badge b-ok">PASS</span>' : '<span class="badge b-fail">FAIL</span>';
+
+  const resultantLabel = crit.resultant === 'middle_third' ? `Middle third (e &le; B/6 = ${(st.B/6).toFixed(2)} ft)` :
+                         crit.resultant === 'middle_half'  ? `Middle half (e &le; B/4 = ${(st.B/4).toFixed(2)} ft)` :
+                         `On base (0 &le; x_R &le; B)`;
+  const resultantStatus = crit.resultant === 'middle_third' ? st.inMiddleThird :
+                          crit.resultant === 'middle_half'  ? st.inMiddleHalf :
+                          st.onBase;
+
+  const hw_key = lc.hwKey, tw_key = lc.twKey;
+  const hw = p[hw_key], tw = p[tw_key];
+
+  document.getElementById('resultArea').innerHTML = `
+    <div class="card">
+      <div class="card-title">${LOAD_CASES[caseKey].label}</div>
+      <div class="note" style="margin-bottom:12px">
+        HW = ${hw.toFixed(1)} ft &nbsp;|&nbsp; TW = ${tw.toFixed(1)} ft &nbsp;|&nbsp;
+        ${lc.seismic ? `Seismic k&#x2095; = ${p.kh}` : 'No seismic'} &nbsp;|&nbsp;
+        Code: ${code.toUpperCase()} &nbsp;|&nbsp; B = ${st.B.toFixed(2)} ft
+      </div>
+
+      <div class="${allOk ? 'banner-pass' : 'banner-fail'} result-banner">
+        ${allOk ? '&#10003; ALL CHECKS PASS' : '&#10007; ONE OR MORE CHECKS FAIL'}
+      </div>
+
+      <div class="metrics" style="grid-template-columns:repeat(3,1fr)">
+        <div class="metric">
+          <div class="mlabel">Sliding FS</div>
+          <div class="mval ${fs_ok ? 'ok' : 'fail'}">${fmtFS(st.FS_slide)}</div>
+          <div class="note">req &ge; ${crit.fs_slide}</div>
+        </div>
+        <div class="metric">
+          <div class="mlabel">Overturning Mr/Mo</div>
+          <div class="mval ${ot_ok ? 'ok' : 'fail'}">${crit.fs_overturn ? fmtFS(st.FS_OT) : 'N/A'}</div>
+          <div class="note">${crit.fs_overturn ? `req &ge; ${crit.fs_overturn}` : 'Not required by code'}</div>
+        </div>
+        <div class="metric">
+          <div class="mlabel">Eccentricity e</div>
+          <div class="mval ${resultantStatus ? 'ok' : 'fail'}">${st.e.toFixed(2)} ft</div>
+          <div class="note">B/6 = ${(st.B/6).toFixed(2)} ft</div>
+        </div>
+      </div>
+
+      <div style="overflow-x:auto;margin-bottom:12px">
+        <table>
+          <thead><tr><th>Check</th><th>Value</th><th>Required</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Sliding FS = (&#931;V&#183;tan&phi; + c&#183;B) / &#931;H</td>
+              <td class="td-mono">${fmtFS(st.FS_slide)}</td>
+              <td>&ge; ${crit.fs_slide}</td>
+              <td>${badge(fs_ok)}</td>
+            </tr>
+            <tr>
+              <td>Overturning FS (Mr / Mo)</td>
+              <td class="td-mono">${crit.fs_overturn ? fmtFS(st.FS_OT) : '—'}</td>
+              <td>${crit.fs_overturn ? `&ge; ${crit.fs_overturn}` : 'N/A'}</td>
+              <td>${crit.fs_overturn ? badge(ot_ok) : '<span class="badge b-neutral">N/A</span>'}</td>
+            </tr>
+            <tr>
+              <td>Eccentricity e = B/2 - x&#x1D479;</td>
+              <td class="td-mono">${st.e.toFixed(3)} ft</td>
+              <td>${resultantLabel}</td>
+              <td>${badge(resultantStatus)}</td>
+            </tr>
+            <tr>
+              <td>Resultant location x&#x1D479; from toe</td>
+              <td class="td-mono">${st.x_R.toFixed(3)} ft</td>
+              <td>0 &le; x&#x1D479; &le; B = ${st.B.toFixed(2)} ft</td>
+              <td>${badge(st.onBase)}</td>
+            </tr>
+            <tr>
+              <td>Heel pressure &sigma;&#x2095;</td>
+              <td class="td-mono">${st.sigma_heel.toFixed(0)} psf</td>
+              <td>&ge; 0 (no tension)</td>
+              <td>${badge(!st.tension)}</td>
+            </tr>
+            <tr>
+              <td>Toe pressure &sigma;&#x1D461;</td>
+              <td class="td-mono">${st.sigma_toe.toFixed(0)} psf</td>
+              <td>&le; q&#x2090;&#x2097;&#x2097;&#x2092;&#x1D464;</td>
+              <td><span class="badge b-neutral">Check vs soil</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="collapsible-header" onclick="this.nextElementSibling.classList.toggle('open')">
+        &#9660; Formulas &amp; Intermediate Values
+      </div>
+      <div class="collapsible-body">
+        <div style="font-size:12px;line-height:2;font-family:monospace;background:#f8f9fb;padding:10px;border-radius:6px;margin-top:6px">
+          N = &#931;V = ${st.N.toFixed(3)} k/ft (net vertical incl. uplift)<br>
+          &#931;H = ${st.H_drive.toFixed(3)} k/ft (driving horizontal)<br>
+          Friction resistance = N &middot; tan(${p.phi}&deg;) = ${st.frictionR.toFixed(3)} k/ft<br>
+          Cohesion resistance = c &middot; B = ${st.cohesionR.toFixed(3)} k/ft<br>
+          FS&#x209B;&#x2097;&#x2090;&#x2D; = (${st.frictionR.toFixed(3)} + ${st.cohesionR.toFixed(3)}) / ${st.H_drive.toFixed(3)} = ${fmtFS(st.FS_slide)}<br>
+          Mr (resisting) = ${st.Mr.toFixed(2)} k&#xB7;ft/ft<br>
+          Mo (overturning) = ${st.Mo.toFixed(2)} k&#xB7;ft/ft<br>
+          FS&#x2092;&#x1D413; = Mr/Mo = ${fmtFS(st.FS_OT)}<br>
+          x&#x1D479; from toe = (Mr - Mo) / N = ${st.x_R.toFixed(3)} ft<br>
+          e = B/2 - x&#x1D479; = ${(st.B/2).toFixed(3)} - ${st.x_R.toFixed(3)} = ${st.e.toFixed(3)} ft<br>
+          &sigma;&#x1D461;&#x2092;&#x2091; = N/B &middot; (1 + 6e/B) = ${st.sigma_toe.toFixed(0)} psf<br>
+          &sigma;&#x2095;&#x2091;&#x2091;&#x2097; = N/B &middot; (1 - 6e/B) = ${st.sigma_heel.toFixed(0)} psf
+        </div>
+      </div>
+    </div>
+    <div class="note">Preliminary screening only. A licensed professional engineer must verify all results.</div>
+  `;
+}
+
+// === CSV EXPORT ===
+function exportCSV() {
+  if (!state.analysisRan) { alert('Run analysis first.'); return; }
+  const caseKeys = ['usual', 'flood', 'seismic', 'extreme'];
+  const rows = [['Case', 'Sliding FS', 'Req FS Slide', 'OT Mr/Mo', 'Eccentricity ft', 'B/6 ft', 'In Middle Third', 'x_R ft', 'Heel Pressure psf', 'Toe Pressure psf', 'Tension', 'N k/ft', 'H k/ft']];
+  caseKeys.forEach(key => {
+    const res = state.results[key];
+    if (!res) return;
+    const { stability: st, p } = res;
+    const crit = CRITERIA[p.designCode][key];
+    rows.push([
+      LOAD_CASES[key].label,
+      isFinite(st.FS_slide) ? st.FS_slide.toFixed(3) : 'Inf',
+      crit.fs_slide,
+      isFinite(st.FS_OT) ? st.FS_OT.toFixed(3) : 'Inf',
+      st.e.toFixed(3),
+      (st.B / 6).toFixed(3),
+      st.inMiddleThird ? 'Yes' : 'No',
+      st.x_R.toFixed(3),
+      st.sigma_heel.toFixed(0),
+      st.sigma_toe.toFixed(0),
+      st.tension ? 'Yes' : 'No',
+      st.N.toFixed(3),
+      st.H_drive.toFixed(3)
+    ]);
+  });
+  const csv = rows.map(r => r.join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'DamStab_results.csv';
+  a.click();
+}
+
+// === REPORT GENERATION ===
+function generateReport() {
+  if (!state.analysisRan) { alert('Run analysis first, then generate the report.'); return; }
+  const projName = document.getElementById('projName').value || 'Dam Stability Analysis';
+  const engName = document.getElementById('engName').value || '';
+  const reportDate = document.getElementById('reportDate').value || new Date().toLocaleDateString();
+  const projNum = document.getElementById('projNum').value || '';
+  const notes = document.getElementById('reportNotes').value || '';
+  const p = getParams();
+  const caseKeys = ['usual', 'flood', 'seismic', 'extreme'];
+
+  // Capture geometry figure
+  updateGeoFig();
+  const geoFigImg = document.getElementById('geoFigCanvas').toDataURL();
+
+  // Capture load diagrams for all 4 cases
+  const loadImgs = {};
+  ['usual','flood','seismic','extreme'].forEach(key => {
+    if (state.results[key]) {
+      drawLoadDiagram(state.results[key]);
+      loadImgs[key] = document.getElementById('loadCanvas').toDataURL();
+    }
+  });
+  // Restore active case
+  const activeRes = state.results[state.activeResultTab] || state.results['usual'];
+  if (activeRes) drawLoadDiagram(activeRes);
+
+  let resultRows = '';
+  caseKeys.forEach(key => {
+    const res = state.results[key];
+    if (!res) return;
+    const { stability: st } = res;
+    const crit = CRITERIA[p.designCode][key];
+    const fsOk = st.FS_slide >= crit.fs_slide;
+    resultRows += `<tr>
+      <td>${LOAD_CASES[key].label}</td>
+      <td style="font-family:monospace">${isFinite(st.FS_slide) ? st.FS_slide.toFixed(2) : '&infin;'}</td>
+      <td>&ge; ${crit.fs_slide}</td>
+      <td style="color:${fsOk ? '#1a7a3a' : '#c0392b'};font-weight:600">${fsOk ? 'PASS' : 'FAIL'}</td>
+      <td style="font-family:monospace">${isFinite(st.FS_OT) ? st.FS_OT.toFixed(2) : '&infin;'}</td>
+      <td style="font-family:monospace">${st.e.toFixed(2)}</td>
+      <td>${st.inMiddleThird ? 'Yes' : 'No'}</td>
+      <td style="font-family:monospace">${st.sigma_heel.toFixed(0)}</td>
+      <td style="font-family:monospace">${st.sigma_toe.toFixed(0)}</td>
+      <td style="color:${st.tension ? '#c0392b' : '#1a7a3a'}">${st.tension ? 'YES' : 'No'}</td>
+    </tr>`;
+  });
+
+  const allPass = caseKeys.every(key => {
+    const res = state.results[key];
+    if (!res) return true;
+    const { stability: st } = res;
+    const crit = CRITERIA[p.designCode][key];
+    return st.FS_slide >= crit.fs_slide && (!crit.fs_overturn || st.FS_OT >= crit.fs_overturn);
+  });
+
+  const nodeTableRows = state.realNodes.map((n, i) =>
+    `<tr><td>${i + 1}</td><td style="font-family:monospace">${n.x.toFixed(3)}</td><td style="font-family:monospace">${n.y.toFixed(3)}</td></tr>`
+  ).join('');
+
+  const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+<title>Dam Stability Report — ${projName}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Georgia,serif;font-size:12pt;color:#1a1a1a;background:#fff;padding:1in}
+h1{font-size:22pt;margin-bottom:6pt;color:#1a1a1a}
+h2{font-size:14pt;margin:18pt 0 8pt;border-bottom:2pt solid #ccc;padding-bottom:4pt;color:#333}
+h3{font-size:12pt;margin:12pt 0 6pt;color:#444}
+p{margin-bottom:8pt;line-height:1.6}
+table{width:100%;border-collapse:collapse;margin-bottom:12pt;font-size:10pt}
+th{background:#f0f0f0;padding:5pt 8pt;text-align:left;border:1pt solid #ccc;font-weight:600}
+td{padding:4pt 8pt;border:1pt solid #ddd}
+.cover{text-align:center;padding:1in 0}
+.cover-sub{font-size:12pt;color:#666;margin-top:8pt}
+.info-table{width:60%;margin:20pt auto}
+.info-table td{border:none;padding:4pt 8pt}
+.info-table td:first-child{font-weight:600;color:#555;width:40%}
+.section{margin-bottom:20pt}
+img{max-width:100%;border:1pt solid #ccc;border-radius:4pt;margin:8pt 0}
+.disclaimer{background:#fffbe6;border:1pt solid #ffe082;padding:10pt;border-radius:4pt;font-size:10pt;margin-top:20pt}
+.pass{color:#1a7a3a;font-weight:700}.fail{color:#c0392b;font-weight:700}
+.sig-block{margin-top:40pt;display:grid;grid-template-columns:1fr 1fr;gap:30pt}
+.sig-line{border-top:1pt solid #333;margin-top:30pt;padding-top:6pt;font-size:10pt;color:#555}
+@media print{body{padding:.5in}.sig-block{break-inside:avoid}}
+</style></head><body>
+<div class="cover">
+  <h1>Gravity Dam Stability Analysis</h1>
+  <div class="cover-sub">${projName}</div>
+  <table class="info-table" style="margin-top:20pt">
+    <tr><td>Project Name:</td><td>${projName}</td></tr>
+    <tr><td>Project Number:</td><td>${projNum || '—'}</td></tr>
+    <tr><td>Engineer:</td><td>${engName || '—'}</td></tr>
+    <tr><td>Date:</td><td>${reportDate}</td></tr>
+    <tr><td>Design Code:</td><td>${p.designCode.toUpperCase()}</td></tr>
+  </table>
+  ${notes ? `<p style="margin-top:16pt;font-style:italic;color:#555">${notes}</p>` : ''}
+</div>
+
+<h2>1. Geometry</h2>
+<div class="section">
+  <img src="${geoFigImg}" alt="Geometry Figure">
+  <h3>Node Coordinates</h3>
+  <table><thead><tr><th>#</th><th>X (ft)</th><th>Y / Elevation (ft)</th></tr></thead>
+  <tbody>${nodeTableRows}</tbody></table>
+</div>
+
+<h2>2. Input Parameters</h2>
+<div class="section">
+  <table>
+    <thead><tr><th>Parameter</th><th>Value</th><th>Unit</th></tr></thead>
+    <tbody>
+      <tr><td>Headwater — Normal Pool</td><td>${p.hwNormal}</td><td>ft</td></tr>
+      <tr><td>Headwater — Flood</td><td>${p.hwFlood}</td><td>ft</td></tr>
+      <tr><td>Tailwater — Normal</td><td>${p.twNormal}</td><td>ft</td></tr>
+      <tr><td>Tailwater — Flood</td><td>${p.twFlood}</td><td>ft</td></tr>
+      <tr><td>Base Elevation</td><td>${p.baseElev}</td><td>ft</td></tr>
+      <tr><td>Crest Elevation</td><td>${p.crestElev}</td><td>ft</td></tr>
+      <tr><td>Concrete Unit Weight</td><td>${p.concUW}</td><td>pcf</td></tr>
+      <tr><td>Water Unit Weight</td><td>${p.waterUW}</td><td>pcf</td></tr>
+      <tr><td>Friction Angle &phi;</td><td>${p.phi}</td><td>degrees</td></tr>
+      <tr><td>Cohesion c</td><td>${p.cohesion}</td><td>psf</td></tr>
+      <tr><td>Use Cohesion</td><td>${p.useCohesion ? 'Yes' : 'No'}</td><td></td></tr>
+      <tr><td>Drain Present</td><td>${p.hasDrain ? 'Yes' : 'No'}</td><td></td></tr>
+      <tr><td>Drain Distance from Heel</td><td>${p.drainDist}</td><td>ft</td></tr>
+      <tr><td>Drain Efficiency</td><td>${p.drainEff}</td><td>—</td></tr>
+      <tr><td>Seismic Coeff k&#x2095;</td><td>${p.kh}</td><td>—</td></tr>
+      <tr><td>Design Code</td><td>${p.designCode.toUpperCase()}</td><td></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h2>3. Load Diagrams</h2>
+${['usual','flood','seismic','extreme'].filter(k => loadImgs[k]).map(k => `
+<div class="section" style="page-break-inside:avoid;margin-bottom:18px">
+  <h3 style="font-size:13px;margin-bottom:6px">${LOAD_CASES[k].label}</h3>
+  <img src="${loadImgs[k]}" alt="Load Diagram — ${LOAD_CASES[k].label}" style="max-width:100%;border:1px solid #ddd;border-radius:4px">
+</div>`).join('')}
+
+<h2>4. Stability Results Summary</h2>
+<div class="section">
+  <table>
+    <thead><tr>
+      <th>Load Case</th><th>Sliding FS</th><th>Required</th><th>Status</th>
+      <th>OT Mr/Mo</th><th>Eccent. (ft)</th><th>Mid-Third</th>
+      <th>Heel (psf)</th><th>Toe (psf)</th><th>Tension</th>
+    </tr></thead>
+    <tbody>${resultRows}</tbody>
+  </table>
+  <p style="margin-top:10pt;font-size:11pt;font-weight:700;color:${allPass ? '#1a7a3a' : '#c0392b'}">
+    Overall: ${allPass ? 'ALL CHECKS PASS' : 'ONE OR MORE CHECKS FAIL — Review required'}
+  </p>
+</div>
+
+<h2>5. Conclusion</h2>
+<div class="section">
+  <p>This preliminary stability analysis was performed for a concrete gravity dam section per ${p.designCode.toUpperCase()}. The geometry was defined by ${state.realNodes.length} nodes with a base width of ${state.results['usual']?.loads.B.toFixed(1) || '—'} ft.</p>
+  <p>Under the four standard load cases (Usual, Flood, Seismic, Extreme), the dam section ${allPass ? 'meets all required stability criteria' : 'does not meet all required stability criteria and requires design revision'}.</p>
+  ${notes ? `<p><em>Notes: ${notes}</em></p>` : ''}
+</div>
+
+<div class="sig-block">
+  <div>
+    <div class="sig-line">Engineer of Record: ${engName || '________________________'}</div>
+    <div class="sig-line" style="margin-top:12pt">Signature: ________________________</div>
+  </div>
+  <div>
+    <div class="sig-line">Date: ${reportDate}</div>
+    <div class="sig-line" style="margin-top:12pt">PE License #: ________________________</div>
+  </div>
+</div>
+
+<div class="disclaimer">
+  <strong>Disclaimer:</strong> This report is generated by DamStab for preliminary screening purposes only. Results have not been independently verified and must be reviewed and sealed by a licensed professional engineer before use in any design, permitting, or regulatory context.
+</div>
+</body></html>`;
+
+  const w = window.open('', '_blank');
+  w.document.write(html);
+  w.document.close();
+}
+
+// === PROJECT TITLE (#9) ===
+function syncProjTitle() {
+  const t = document.getElementById('projTitle').value;
+  const pn = document.getElementById('projName');
+  if (pn) pn.value = t || 'Dam Stability Analysis';
+  document.title = (t ? t + ' — ' : '') + 'DamStab';
+}
+
+// === SAVE / LOAD PROJECTS (#10) ===
+// Serializes geometry, all input fields, additional loads and the project title to a JSON
+// file the user can re-open later. Pure client-side download/upload (no server).
+const SAVED_INPUT_IDS = [
+  'hwNormal','hwFlood','crestElev','twNormal','twFlood','baseElev',
+  'concUW','waterUW','phi','cohesion','useCohesion','foundationType',
+  'hasDrain','drainDist','drainEff','hasUpstreamSilt','siltUpElev','siltUpUW','siltUpPhi',
+  'hasDownstreamSoil','siltDnElev','siltDnUW','siltDnPhi','kh','kv','useWestergaard',
+  'hasIce','iceLoad','iceElev','overrideConc','manWeight','manCgX','manCgY',
+  'projName','engName','reportDate','projNum','reportNotes','scaleVal','unitSel','geoBaseElev'
+];
+function collectProject() {
+  const inputs = {};
+  SAVED_INPUT_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    inputs[id] = (el.type === 'checkbox') ? el.checked : el.value;
+  });
+  const designCode = document.querySelector('input[name=designCode]:checked')?.value || 'ferc';
+  return {
+    app: 'DamStab', version: 1,
+    title: document.getElementById('projTitle').value || '',
+    realNodes: state.realNodes,
+    nodes: state.nodes,
+    scale: state.scale,
+    unit: state.unit,
+    baseElev: state.baseElev,
+    datumPy: state.datumPy,
+    inputs,
+    designCode,
+    addLoads: addLoadState
+  };
+}
+function exportProject() {
+  const data = collectProject();
+  const name = (data.title || 'damstab-project').replace(/[^\w\-]+/g, '_');
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name + '.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+function importProject(file) {
+  if (!file) return;
+  const r = new FileReader();
+  r.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (data.app !== 'DamStab') { alert('Not a DamStab project file.'); return; }
+      // Geometry / state
+      state.realNodes = data.realNodes || [];
+      state.nodes = data.nodes || [];
+      state.scale = data.scale ?? 1;
+      state.unit = data.unit ?? 'ft';
+      state.baseElev = data.baseElev ?? 0;
+      state.datumPy = data.datumPy ?? null;
+      state._bgImg = null;
+      // Inputs
+      Object.entries(data.inputs || {}).forEach(([id, v]) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (el.type === 'checkbox') el.checked = !!v; else el.value = v;
+      });
+      // Design code radio
+      if (data.designCode) {
+        const radio = document.querySelector(`input[name=designCode][value="${data.designCode}"]`);
+        if (radio) radio.checked = true;
+      }
+      // Title
+      document.getElementById('projTitle').value = data.title || '';
+      // Additional loads
+      addLoadState.length = 0;
+      (data.addLoads || []).forEach(l => addLoadState.push({ label: l.label || '', load: l.load || 0, x: l.x || 0 }));
+      renderAddLoadTable();
+      // Refresh UI
+      syncProjTitle();
+      toggleSiltUI();
+      toggleConcOverride();
+      updateCodeDesc();
+      computeRealNodes();
+      redrawGeoCanvas();
+      updateNodeTable();
+      updateGeoFig();
+      updateConcDisplay();
+      alert('Project "' + (data.title || 'untitled') + '" loaded.');
+    } catch (err) {
+      alert('Could not read project file: ' + err.message);
+    }
+  };
+  r.readAsText(file);
+  document.getElementById('projImport').value = '';
+}
+
+// === INIT ===
+function init() {
+  // Set default date
+  document.getElementById('reportDate').value = new Date().toLocaleDateString('en-US');
+  updateCodeDesc();
+  loadSampleGeometry();
+  updateAIScanVisibility();
+  initLoadCanvasPan();
+  renderAddLoadTable();
+  updateConcDisplay();
+  syncProjTitle();
+}
+
+init();
+</script>
 </body>
 </html>
