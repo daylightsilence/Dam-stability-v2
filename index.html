@@ -1415,48 +1415,8 @@ function calcLoads(pts, p, caseKey) {
     }
   }
 
-  // 3b. Vertical water weight on upstream overhanging face
-  // For each upstream face segment, the vertical hydrostatic force = γ_w × Δx × (hw − y_mid)
-  // (rectangular column of water above the horizontal projection of the segment).
-  let upstreamWedgeData = null; // saved for diagram rendering
-  if (hd > 0) {
-    let totalArea = 0, wxSum = 0;
-    for (let i = 0; i < pts.length; i++) {
-      const a = pts[i], b = pts[(i+1) % pts.length];
-      if ((a.x + b.x) / 2 > (heel + toe) / 2) continue; // right half: skip
-      const dyRaw = b.y - a.y;
-      if (Math.abs(dyRaw) < 1e-6) continue; // horizontal edge: skip
-      // Orient so y increases upward (a lower, b upper)
-      let [x1, y1, x2, y2] = dyRaw > 0 ? [a.x, a.y, b.x, b.y] : [b.x, b.y, a.x, a.y];
-      if (y1 >= hw || y2 <= base) continue; // outside HW–base range
-      // Clip at base
-      if (y1 < base) { const t=(base-y1)/(y2-y1); x1=x1+t*(x2-x1); y1=base; }
-      // Clip at hw
-      if (y2 > hw)   { const t=(hw-y1)/(y2-y1);   x2=x1+t*(x2-x1); y2=hw;   }
-      const dxSeg = Math.abs(x2 - x1); // horizontal projection of this segment
-      if (dxSeg < 0.001) continue;     // essentially vertical: skip
-      const yMid = (y1 + y2) / 2;
-      const depth = hw - yMid;         // water depth at face mid-elevation
-      if (depth <= 0) continue;
-      const xAvg = (x1 + x2) / 2;
-      const segArea = dxSeg * depth;   // rectangular: width × depth
-      totalArea += segArea;
-      wxSum     += xAvg * segArea;
-    }
-    if (totalArea > 0.01) {
-      const Fww   = gw * totalArea / 1000;            // kips/ft, downward
-      const xCent = wxSum / totalArea;
-      const arm   = toe - xCent;
-      vForces.push({
-        label: 'Water on US Face (vert)',
-        F: Fww,
-        arm,
-        moment: Fww * arm,
-        note: `rect water column ${totalArea.toFixed(2)} ft² on upstream face`
-      });
-      upstreamWedgeData = { area: totalArea, xCent, F: Fww };
-    }
-  }
+  // 3b. (removed — inclined face water wedge consolidated into section 1c horizontal landings)
+  let upstreamWedgeData = null;
 
   // 4. Headwater horizontal
   if (hd > 0) {
@@ -1571,12 +1531,15 @@ function calcLoads(pts, p, caseKey) {
       if (!isFoundation) continue;
       if (!p.hasUpstreamSilt) continue;             // key load only when upstream soil present
       if (ymid >= hw) continue;                     // not submerged
-      // Triangular pressure distribution: 0 at top of key face, max at bottom
+      // Triangular pressure: 0 at key top (base elevation), max = γ_w × depth_below_base at bottom.
+      // Represents incremental pressure due to key projection below grade.
       const yTop = Math.max(a.y, b.y);
       const yBot = Math.min(a.y, b.y);
-      const p_top = gw * (hw - yTop) / 1000;        // ksf at top of vertical face
-      const p_bot = gw * (hw - yBot) / 1000;        // ksf at bottom of vertical face
-      const p_avg = (p_top + p_bot) / 2;            // average (trapezoidal distribution)
+      const dTop = Math.max(0, base - yTop);        // depth below base at key top
+      const dBot = Math.max(0, base - yBot);        // depth below base at key bottom
+      const p_top = gw * dTop / 1000;               // ksf — 0 if top is at base level
+      const p_bot = gw * dBot / 1000;               // ksf at key bottom
+      const p_avg = (p_top + p_bot) / 2;
       const Fh  = -p_avg * wsign * dy;              // + = driving (downstream)
       if (Math.abs(Fh) < 1e-4) continue;
       const arm = ymid - base;                      // arm relative to base (neg below base)
