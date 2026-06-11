@@ -1542,16 +1542,37 @@ function calcLoads(pts, p, caseKey) {
       // from the main face) get an additional hydrostatic load here.
       const hasNodesFurtherUpstream = pts.some(n => n.x < xmid - 0.5);
       if (!hasNodesFurtherUpstream) continue;
+      // Section 4 (HW triangle) covers the full projected area from base to HW.
+      // Section 9 only adds forces for faces below or at the base — shear keys and
+      // foundation steps that are NOT captured by the HW projection.
+      const faceTopY = Math.max(a.y, b.y);
+      if (faceTopY > base + 0.5) continue;           // face is above base — already in HW triangle
       if (ymid >= hw) continue;                     // not submerged
-      // Full hydrostatic pressure (trapezoidal): depth from HW surface to each point on the face.
-      // Clip face to the HW surface at the top.
-      const yTop = Math.min(Math.max(a.y, b.y), hw); // clipped to HW at top
-      const yBot = Math.min(a.y, b.y);
+
+      const yTop = Math.min(faceTopY, hw);           // top of key face (= base for typical key)
+      const yBot = Math.min(a.y, b.y);               // bottom of key face
       if (yTop <= yBot) continue;
-      const p_top = gw * Math.max(0, hw - yTop) / 1000; // ksf at face top
-      const p_bot = gw * Math.max(0, hw - yBot) / 1000; // ksf at face bottom
+
+      // Pressure at key top = uplift pressure at this x location (accounts for drain).
+      // The lateral water pressure on the key face connects continuously to the uplift
+      // distribution at base level, not necessarily to the full headwater head.
+      let p_at_base;
+      if (p.hasDrain && p.drainDist > 0 && p.drainDist < B) {
+        const pD_ksf = pT + (1 - p.drainEff) * (pH - pT);
+        const xDrain = heel + p.drainDist;
+        if (xmid <= xDrain) {
+          p_at_base = pH + (pD_ksf - pH) * (xmid - heel) / p.drainDist;
+        } else {
+          p_at_base = pD_ksf + (pT - pD_ksf) * (xmid - xDrain) / Math.max(toe - xDrain, 1e-6);
+        }
+      } else {
+        p_at_base = pH + (pT - pH) * (xmid - heel) / Math.max(B, 1e-6);
+      }
+      // Pressure increases linearly below base by full γ_w per foot of key depth
+      const p_top = Math.max(0, p_at_base);                      // ksf at key top (= base)
+      const p_bot = p_top + gw * (yTop - yBot) / 1000;          // ksf at key bottom
       const p_avg = (p_top + p_bot) / 2;
-      const Fh = p_avg * (yTop - yBot);               // kips/ft, always positive (driving upstream→downstream)
+      const Fh = p_avg * (yTop - yBot);               // kips/ft, driving (upstream → downstream)
       if (Math.abs(Fh) < 1e-4) continue;
       const arm = ((yTop + yBot) / 2) - base;
       hForces.push({
@@ -1562,7 +1583,8 @@ function calcLoads(pts, p, caseKey) {
         x: xmid,
         yMid: (yTop + yBot) / 2,
         yTop, yBot,
-        note: `upstream-facing face @ x=${xmid.toFixed(1)} ft, ${Fh.toFixed(2)} k/ft driving`
+        p_top, p_bot,
+        note: `key face @ x=${xmid.toFixed(1)} ft, p_top=${(p_top*1000).toFixed(0)} psf, ${Fh.toFixed(2)} k/ft driving`
       });
     }
   }
@@ -2136,10 +2158,11 @@ function drawLoadDiagram(res) {
     const yBotC = py(f.yBot);   // canvas y of face bottom
     const yMidC = py(f.yMid);
 
-    // Pressure widths proportional to depth below HW
-    const hw_val = p[LOAD_CASES[res.caseKey].hwKey];
-    const w_top = Math.max(0, (hw_val - f.yTop) * s * 0.7); // px at face top
-    const w_bot = Math.max(0, (hw_val - f.yBot) * s * 0.7); // px at face bottom
+    // Pressure widths from stored p_top/p_bot (ksf), scaled to pixels
+    // Convert ksf → equivalent water depth (ft) → canvas pixels
+    const pScale = (1000 / p.waterUW) * s * 0.7; // ksf → ft-depth → px
+    const w_top = Math.max(0, (f.p_top || 0) * pScale);
+    const w_bot = Math.max(0, (f.p_bot || 0) * pScale);
     const maxW  = Math.max(w_bot, 12);
 
     // Trapezoidal pressure shape to the left of the face (upstream side)
