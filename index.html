@@ -1415,13 +1415,12 @@ function calcLoads(pts, p, caseKey) {
     }
   }
 
-  // 3b. Vertical water weight on inclined upstream face
-  // = γ_w × (area of water wedge between the inclined concrete face and the vertical line
-  //   through the heel). This is the vertical component of hydrostatic force on a sloped
-  //   upstream face — a stabilising downward load on the concrete.
+  // 3b. Vertical water weight on upstream overhanging face
+  // For each upstream face segment, the vertical hydrostatic force = γ_w × Δx × (hw − y_mid)
+  // (rectangular column of water above the horizontal projection of the segment).
   let upstreamWedgeData = null; // saved for diagram rendering
   if (hd > 0) {
-    let wedgeArea = 0, wxSum = 0;
+    let totalArea = 0, wxSum = 0;
     for (let i = 0; i < pts.length; i++) {
       const a = pts[i], b = pts[(i+1) % pts.length];
       if ((a.x + b.x) / 2 > (heel + toe) / 2) continue; // right half: skip
@@ -1434,25 +1433,28 @@ function calcLoads(pts, p, caseKey) {
       if (y1 < base) { const t=(base-y1)/(y2-y1); x1=x1+t*(x2-x1); y1=base; }
       // Clip at hw
       if (y2 > hw)   { const t=(hw-y1)/(y2-y1);   x2=x1+t*(x2-x1); y2=hw;   }
+      const dxSeg = Math.abs(x2 - x1); // horizontal projection of this segment
+      if (dxSeg < 0.001) continue;     // essentially vertical: skip
+      const yMid = (y1 + y2) / 2;
+      const depth = hw - yMid;         // water depth at face mid-elevation
+      if (depth <= 0) continue;
       const xAvg = (x1 + x2) / 2;
-      const dx   = xAvg - heel; // offset downstream from heel
-      if (dx < 0.001) continue; // edge lies at or left of heel: nothing between face and heel
-      const segArea = dx * (y2 - y1);
-      wedgeArea += segArea;
+      const segArea = dxSeg * depth;   // rectangular: width × depth
+      totalArea += segArea;
       wxSum     += xAvg * segArea;
     }
-    if (wedgeArea > 0.01) {
-      const Fww   = gw * wedgeArea / 1000;            // kips/ft, downward
-      const xCent = wxSum / wedgeArea;
+    if (totalArea > 0.01) {
+      const Fww   = gw * totalArea / 1000;            // kips/ft, downward
+      const xCent = wxSum / totalArea;
       const arm   = toe - xCent;
       vForces.push({
         label: 'Water on US Face (vert)',
         F: Fww,
         arm,
         moment: Fww * arm,
-        note: `wedge ${wedgeArea.toFixed(2)} ft² between upstream face and vertical heel line`
+        note: `rect water column ${totalArea.toFixed(2)} ft² on upstream face`
       });
-      upstreamWedgeData = { area: wedgeArea, xCent, F: Fww };
+      upstreamWedgeData = { area: totalArea, xCent, F: Fww };
     }
   }
 
@@ -1567,9 +1569,15 @@ function calcLoads(pts, p, caseKey) {
       // (horizontal normal, well above base).
       const isFoundation = (ymid < base - 0.01) || (ny < -0.10 && ymid <= base + zoneTol);
       if (!isFoundation) continue;
+      if (!p.hasUpstreamSilt) continue;             // key load only when upstream soil present
       if (ymid >= hw) continue;                     // not submerged
-      const p_w = gw * (hw - ymid) / 1000;          // ksf at face mid-depth
-      const Fh  = -p_w * wsign * dy;                // + = driving (downstream)
+      // Triangular pressure distribution: 0 at top of key face, max at bottom
+      const yTop = Math.max(a.y, b.y);
+      const yBot = Math.min(a.y, b.y);
+      const p_top = gw * (hw - yTop) / 1000;        // ksf at top of vertical face
+      const p_bot = gw * (hw - yBot) / 1000;        // ksf at bottom of vertical face
+      const p_avg = (p_top + p_bot) / 2;            // average (trapezoidal distribution)
+      const Fh  = -p_avg * wsign * dy;              // + = driving (downstream)
       if (Math.abs(Fh) < 1e-4) continue;
       const arm = ymid - base;                      // arm relative to base (neg below base)
       baseFaceIdx++;
@@ -1580,7 +1588,7 @@ function calcLoads(pts, p, caseKey) {
         moment: Fh * arm,
         x: (a.x + b.x) / 2,                          // face mid-x (for diagram)
         yMid: ymid,
-        note: `vert face Δh=${Math.abs(dy).toFixed(2)} ft @ EL ${ymid.toFixed(1)} (${Fh >= 0 ? 'driving' : 'resisting'})`
+        note: `key face Δh=${Math.abs(dy).toFixed(2)} ft @ EL ${ymid.toFixed(1)} (${Fh >= 0 ? 'driving' : 'resisting'})`
       });
     }
   }
