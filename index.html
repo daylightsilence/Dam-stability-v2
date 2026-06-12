@@ -249,6 +249,7 @@ canvas{display:block;border:1px solid #e0e0e0;border-radius:8px;background:#fff}
     <div class="card-title">Geometry Reference</div>
     <canvas id="inputGeoCanvas" width="700" height="200" style="width:100%;height:auto;border-radius:6px;border:1px solid #e0e0e0;background:#f8f9fb"></canvas>
   </div>
+
   <div class="card">
     <div class="card-title">Elevations</div>
     <div class="f3">
@@ -269,6 +270,22 @@ canvas{display:block;border:1px solid #e0e0e0;border-radius:8px;background:#fff}
       <div><label>Concrete Unit Weight (pcf)</label><input type="number" id="concUW" value="150" oninput="onInputChange()"></div>
       <div><label>Water Unit Weight (pcf)</label><input type="number" id="waterUW" value="62.4" oninput="onInputChange()"></div>
       <div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Concrete Weight &amp; Centroid</div>
+    <div class="note" style="margin-bottom:8px">Calculated from the geometry polygon. Tick "Override" to enter values manually (e.g. to account for galleries or voids).</div>
+    <div class="f3">
+      <div><label>Calculated Weight W (k/ft)</label><input type="number" id="calcWeightDisp" value="0" readonly style="background:#f5f5f7"></div>
+      <div><label>Centroid X̄ from heel (ft)</label><input type="number" id="calcCgXDisp" value="0" readonly style="background:#f5f5f7"></div>
+      <div><label>Centroid Ȳ above base (ft)</label><input type="number" id="calcCgYDisp" value="0" readonly style="background:#f5f5f7"></div>
+    </div>
+    <label class="check-label" style="margin-top:4px"><input type="checkbox" id="overrideConc" onchange="toggleConcOverride()"> Override calculated weight / centroid</label>
+    <div id="concOverrideFields" class="f3" style="display:none;margin-top:8px">
+      <div><label>Manual Weight W (k/ft)</label><input type="number" id="manWeight" value="0" step="0.1" oninput="onInputChange()"></div>
+      <div><label>Manual X̄ from heel (ft)</label><input type="number" id="manCgX" value="0" step="0.1" oninput="onInputChange()"></div>
+      <div><label>Manual Ȳ above base (ft)</label><input type="number" id="manCgY" value="0" step="0.1" oninput="onInputChange()"></div>
     </div>
   </div>
 
@@ -341,34 +358,6 @@ canvas{display:block;border:1px solid #e0e0e0;border-radius:8px;background:#fff}
   </div>
 
   <div class="card">
-    <div class="card-title">Concrete Weight &amp; Centroid</div>
-    <div class="note" style="margin-bottom:8px">Calculated from the geometry polygon. Tick "Override" to enter values manually (e.g. to account for galleries or voids).</div>
-    <div class="f3">
-      <div><label>Calculated Weight W (k/ft)</label><input type="number" id="calcWeightDisp" value="0" readonly style="background:#f5f5f7"></div>
-      <div><label>Centroid X̄ from heel (ft)</label><input type="number" id="calcCgXDisp" value="0" readonly style="background:#f5f5f7"></div>
-      <div><label>Centroid Ȳ above base (ft)</label><input type="number" id="calcCgYDisp" value="0" readonly style="background:#f5f5f7"></div>
-    </div>
-    <label class="check-label" style="margin-top:4px"><input type="checkbox" id="overrideConc" onchange="toggleConcOverride()"> Override calculated weight / centroid</label>
-    <div id="concOverrideFields" class="f3" style="display:none;margin-top:8px">
-      <div><label>Manual Weight W (k/ft)</label><input type="number" id="manWeight" value="0" step="0.1" oninput="onInputChange()"></div>
-      <div><label>Manual X̄ from heel (ft)</label><input type="number" id="manCgX" value="0" step="0.1" oninput="onInputChange()"></div>
-      <div><label>Manual Ȳ above base (ft)</label><input type="number" id="manCgY" value="0" step="0.1" oninput="onInputChange()"></div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-title">Additional Vertical Loads</div>
-    <div class="note" style="margin-bottom:8px">Point loads such as bridge dead load, gate weight, pier, hoist, etc. Positive = downward. X measured from heel (upstream base).</div>
-    <div style="overflow-x:auto">
-      <table id="addLoadTable">
-        <thead><tr><th>Label</th><th>Load (k/ft)</th><th>X from heel (ft)</th><th>Y elev (ft)</th><th></th></tr></thead>
-        <tbody id="addLoadBody"></tbody>
-      </table>
-    </div>
-    <button class="btn btn-sm" onclick="addVerticalLoadRow()" style="margin-top:8px">+ Add Vertical Load</button>
-  </div>
-
-  <div class="card">
     <div class="card-title">Ice Load</div>
     <div class="f3">
       <div style="display:flex;align-items:flex-end;padding-bottom:4px">
@@ -381,8 +370,20 @@ canvas{display:block;border:1px solid #e0e0e0;border-radius:8px;background:#fff}
   </div>
 
   <div class="card">
+    <div class="card-title">Additional Vertical Loads</div>
+    <div class="note" style="margin-bottom:8px">Point loads such as bridge dead load, gate weight, pier, hoist, etc. Positive = downward. X measured from heel (upstream base), Y = elevation of application.</div>
+    <div style="overflow-x:auto">
+      <table id="addLoadTable">
+        <thead><tr><th>Label</th><th>Load (k/ft)</th><th>X from heel (ft)</th><th>Y elev (ft)</th><th></th></tr></thead>
+        <tbody id="addLoadBody"></tbody>
+      </table>
+    </div>
+    <button class="btn btn-sm" onclick="addVerticalLoadRow()" style="margin-top:8px">+ Add Vertical Load</button>
+  </div>
+
+  <div class="card">
     <div class="card-title">Additional Horizontal Loads</div>
-    <div class="note" style="margin-bottom:8px">Point horizontal loads (shear key hydrostatic, wind, etc.). Positive = downstream. X from heel, Y = elevation of application.</div>
+    <div class="note" style="margin-bottom:8px">Point horizontal loads (wind, wave, etc.). Positive = downstream. X from heel, Y = elevation of application.</div>
     <div style="overflow-x:auto">
       <table id="addHLoadTable">
         <thead><tr><th>Label</th><th>Load (k/ft, +↓stream)</th><th>X from heel (ft)</th><th>Y elev (ft)</th><th></th></tr></thead>
@@ -1389,6 +1390,7 @@ function calcLoads(pts, p, caseKey) {
         F: al.load,
         arm,
         moment: al.load * arm,
+        xAbs, yAbs: al.y,
         note: `added load @ ${al.x.toFixed(2)} ft from heel`
       });
     });
@@ -2119,14 +2121,17 @@ function drawLoadDiagram(res) {
     ctx.textAlign = 'left';
   }
 
-  // === Additional vertical loads (#5) — small green down-arrows ===
-  loads.vForces.filter(f => f.note && f.note.includes('added load')).forEach(f => {
-    const xAbs = toe - f.arm;
-    const xTop = py(Math.max(...allY)) - 22;
+  // === Additional vertical loads (#5) — small green down-arrows at user-specified X/Y ===
+  loads.vForces.filter(f => f.xAbs !== undefined).forEach(f => {
+    const xC = px(f.xAbs);
+    const yC = py(f.yAbs !== undefined ? f.yAbs : Math.max(...allY));
+    const arrowLen = 30;
     ctx.strokeStyle = '#0c7a4a'; ctx.fillStyle = '#0c7a4a'; ctx.lineWidth = 2;
-    arrow(ctx, px(xAbs), xTop - 16, px(xAbs), xTop + 4, 7);
+    // downward arrow for positive (downward) loads, upward for negative
+    const dir = f.F >= 0 ? 1 : -1;
+    arrow(ctx, xC, yC - dir * arrowLen, xC, yC, 7);
     ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
-    ctx.fillText(f.label + ' ' + f.F.toFixed(1), px(xAbs), xTop - 20);
+    ctx.fillText((f.label || 'V') + ' ' + f.F.toFixed(1) + 'k', xC, yC - dir * arrowLen - 4);
     ctx.textAlign = 'left';
   });
 
