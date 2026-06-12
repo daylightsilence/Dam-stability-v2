@@ -245,6 +245,10 @@ canvas{display:block;border:1px solid #e0e0e0;border-radius:8px;background:#fff}
 
 <!-- ===== INPUT TAB ===== -->
 <div id="panel-input" class="panel">
+  <div class="card" style="margin-bottom:1rem">
+    <div class="card-title">Geometry Reference</div>
+    <canvas id="inputGeoCanvas" width="700" height="200" style="width:100%;height:auto;border-radius:6px;border:1px solid #e0e0e0;background:#f8f9fb"></canvas>
+  </div>
   <div class="card">
     <div class="card-title">Elevations</div>
     <div class="f3">
@@ -357,7 +361,7 @@ canvas{display:block;border:1px solid #e0e0e0;border-radius:8px;background:#fff}
     <div class="note" style="margin-bottom:8px">Point loads such as bridge dead load, gate weight, pier, hoist, etc. Positive = downward. X measured from heel (upstream base).</div>
     <div style="overflow-x:auto">
       <table id="addLoadTable">
-        <thead><tr><th>Label</th><th>Load (k/ft)</th><th>X from heel (ft)</th><th></th></tr></thead>
+        <thead><tr><th>Label</th><th>Load (k/ft)</th><th>X from heel (ft)</th><th>Y elev (ft)</th><th></th></tr></thead>
         <tbody id="addLoadBody"></tbody>
       </table>
     </div>
@@ -377,11 +381,15 @@ canvas{display:block;border:1px solid #e0e0e0;border-radius:8px;background:#fff}
   </div>
 
   <div class="card">
-    <div class="card-title">Shear Key / Foundation Step Hydrostatic</div>
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
-      <label class="check-label"><input type="checkbox" id="hasKeyHydrostatic" checked onchange="onInputChange()"> Apply lateral hydrostatic load on upstream-facing foundation key faces</label>
+    <div class="card-title">Additional Horizontal Loads</div>
+    <div class="note" style="margin-bottom:8px">Point horizontal loads (shear key hydrostatic, wind, etc.). Positive = downstream. X from heel, Y = elevation of application.</div>
+    <div style="overflow-x:auto">
+      <table id="addHLoadTable">
+        <thead><tr><th>Label</th><th>Load (k/ft, +↓stream)</th><th>X from heel (ft)</th><th>Y elev (ft)</th><th></th></tr></thead>
+        <tbody id="addHLoadBody"></tbody>
+      </table>
     </div>
-    <div class="note">Applies trapezoidal hydrostatic pressure to any vertical concrete face below the base that is recessed from the main upstream boundary (shear keys, foundation steps). Pressure at top of face matches uplift at that x-location; increases with depth below grade.</div>
+    <button class="btn btn-sm" onclick="addHLoadRow()" style="margin-top:8px">+ Add Horizontal Load</button>
   </div>
 
   <div class="card">
@@ -512,6 +520,7 @@ function switchTab(name, idx) {
   document.getElementById('panel-' + name).classList.add('active');
   document.querySelectorAll('.tab')[idx].classList.add('active');
   if (name === 'geometry') { redrawGeoCanvas(); updateGeoFig(); }
+  if (name === 'input') { updateGeoFig('inputGeoCanvas'); }
   if (name === 'loads' && state.analysisRan) showLoadCase(0);
   if (name === 'results' && state.analysisRan) showResultCase(0);
 }
@@ -973,8 +982,9 @@ function previewGeometry() {
   document.getElementById('geoFigCanvas').scrollIntoView({ behavior: 'smooth' });
 }
 
-function updateGeoFig() {
-  const canvas = document.getElementById('geoFigCanvas');
+function updateGeoFig(canvasId = 'geoFigCanvas') {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
   ctx.clearRect(0, 0, W, H);
@@ -1131,7 +1141,6 @@ function getParams() {
     kv: gv('kv'),
     useWestergaard: gb('useWestergaard'),
     hasIce: gb('hasIce'),
-    hasKeyHydrostatic: gb('hasKeyHydrostatic'),
     iceLoad: gv('iceLoad'),
     iceElev: document.getElementById('iceElev').value === '' ? null : gv('iceElev'),
     overrideConc: gb('overrideConc'),
@@ -1139,14 +1148,15 @@ function getParams() {
     manCgX: gv('manCgX'),
     manCgY: gv('manCgY'),
     addLoads: getAdditionalLoads(),
+    addHLoads: addHLoadState.map(r => ({ label: r.label || 'Added H Load', load: r.load, x: r.x, y: r.y })),
     designCode: document.querySelector('input[name=designCode]:checked')?.value || 'ferc'
   };
 }
 
 // === ADDITIONAL VERTICAL LOADS (bridge, gate, etc.) ===
 const addLoadState = [];
-function addVerticalLoadRow(label = '', load = 0, x = 0) {
-  addLoadState.push({ label, load, x });
+function addVerticalLoadRow(label = '', load = 0, x = 0, y = 0) {
+  addLoadState.push({ label, load, x, y });
   renderAddLoadTable();
 }
 function removeVerticalLoadRow(i) {
@@ -1168,11 +1178,43 @@ function renderAddLoadTable() {
       <td><input type="number" value="${r.x}" step="0.1"
                  style="width:80px;padding:3px 6px;font-size:12px"
                  onchange="addLoadState[${i}].x=parseFloat(this.value)||0;onInputChange()"></td>
+      <td><input type="number" value="${r.y ?? 0}" step="0.5"
+                 style="width:80px;padding:3px 6px;font-size:12px"
+                 onchange="addLoadState[${i}].y=parseFloat(this.value)||0;onInputChange()"></td>
       <td><button class="btn btn-sm btn-danger" onclick="removeVerticalLoadRow(${i})">&#10005;</button></td>
     </tr>`).join('');
 }
 function getAdditionalLoads() {
-  return addLoadState.map(r => ({ label: r.label || 'Added Load', load: r.load, x: r.x }));
+  return addLoadState.map(r => ({ label: r.label || 'Added Load', load: r.load, x: r.x, y: r.y ?? 0 }));
+}
+
+// === ADDITIONAL HORIZONTAL LOADS ===
+const addHLoadState = [];
+function addHLoadRow(label = '', load = 0, x = 0, y = 0) {
+  addHLoadState.push({ label, load, x, y });
+  renderAddHLoadTable();
+  onInputChange();
+}
+function removeHLoadRow(i) {
+  addHLoadState.splice(i, 1);
+  renderAddHLoadTable();
+  onInputChange();
+}
+function renderAddHLoadTable() {
+  const body = document.getElementById('addHLoadBody');
+  if (!body) return;
+  body.innerHTML = addHLoadState.map((r, i) => `
+    <tr>
+      <td><input type="text" value="${r.label.replace(/"/g,'&quot;')}" style="width:110px;padding:3px 6px;font-size:12px"
+                 onchange="addHLoadState[${i}].label=this.value;onInputChange()"></td>
+      <td><input type="number" value="${r.load}" step="0.1" style="width:80px;padding:3px 6px;font-size:12px"
+                 onchange="addHLoadState[${i}].load=parseFloat(this.value)||0;onInputChange()"></td>
+      <td><input type="number" value="${r.x}" step="0.5" style="width:75px;padding:3px 6px;font-size:12px"
+                 onchange="addHLoadState[${i}].x=parseFloat(this.value)||0;onInputChange()"></td>
+      <td><input type="number" value="${r.y}" step="0.5" style="width:75px;padding:3px 6px;font-size:12px"
+                 onchange="addHLoadState[${i}].y=parseFloat(this.value)||0;onInputChange()"></td>
+      <td><button class="btn btn-sm btn-danger" onclick="removeHLoadRow(${i})">&#10005;</button></td>
+    </tr>`).join('');
 }
 
 function toggleConcOverride() {
@@ -1184,6 +1226,7 @@ function toggleConcOverride() {
 function onInputChange() {
   updateCodeDesc();
   updateConcDisplay();
+  updateGeoFig('inputGeoCanvas');
 }
 
 // #4 / #12 — compute & display the polygon weight and centroid so the user can sanity-check
@@ -1524,78 +1567,22 @@ function calcLoads(pts, p, caseKey) {
     });
   }
 
-  // 9. #3 — Horizontal hydrostatic load on a non-horizontal base.
-  //    Any base/foundation face with a vertical component (a key, or a step/shift in
-  //    the base elevation) is exposed to water at its foundation head and therefore
-  //    carries a horizontal hydrostatic load. We walk every polygon edge in the
-  //    foundation zone, and for each vertical-component face add the water pressure
-  //    acting over its vertical projection. Sign is set from the true outward normal
-  //    (upstream-facing ⇒ driving +, downstream-facing ⇒ resisting −). Flat (horizontal)
-  //    base segments contribute no horizontal load and the vertical upstream face is
-  //    excluded (already captured by the headwater triangle).
-  if (hd > 0 && p.hasKeyHydrostatic) {
-    for (let i = 0; i < pts.length; i++) {
-      const a = pts[i], b = pts[(i + 1) % pts.length];
-      const dx = b.x - a.x, dy = b.y - a.y;
-      if (Math.abs(dy) < 0.05) continue;            // ~horizontal face: no horizontal load
-      const L = Math.hypot(dx, dy);
-      const ymid = (a.y + b.y) / 2;
-      const xmid = (a.x + b.x) / 2;
-      const nx = wsign * dy / L;                    // outward normal x-component
-      // Upstream-facing face: outward normal points upstream (nx < -0.5)
-      // AND not the main heel face (already captured by HW triangle in section 4)
-      if (nx >= -0.5) continue;                     // not predominantly upstream-facing
-      // Skip if this IS the outermost upstream boundary — i.e., no polygon node exists
-      // further upstream (lower x) than this face. Those faces are already captured by
-      // the headwater triangle in section 4. Only recessed faces (keys, steps set back
-      // from the main face) get an additional hydrostatic load here.
-      const hasNodesFurtherUpstream = pts.some(n => n.x < xmid - 0.5);
-      if (!hasNodesFurtherUpstream) continue;
-      // Section 4 (HW triangle) covers the full projected area from base to HW.
-      // Section 9 only adds forces for faces below or at the base — shear keys and
-      // foundation steps that are NOT captured by the HW projection.
-      const faceTopY = Math.max(a.y, b.y);
-      if (faceTopY > base + 0.5) continue;           // face is above base — already in HW triangle
-      if (ymid >= hw) continue;                     // not submerged
-
-      const yTop = Math.min(faceTopY, hw);           // top of key face (= base for typical key)
-      const yBot = Math.min(a.y, b.y);               // bottom of key face
-      if (yTop <= yBot) continue;
-
-      // Pressure at key top = uplift pressure at this x location (accounts for drain).
-      // The lateral water pressure on the key face connects continuously to the uplift
-      // distribution at base level, not necessarily to the full headwater head.
-      let p_at_base;
-      if (p.hasDrain && p.drainDist > 0 && p.drainDist < B) {
-        const pD_ksf = pT + (1 - p.drainEff) * (pH - pT);
-        const xDrain = heel + p.drainDist;
-        if (xmid <= xDrain) {
-          p_at_base = pH + (pD_ksf - pH) * (xmid - heel) / p.drainDist;
-        } else {
-          p_at_base = pD_ksf + (pT - pD_ksf) * (xmid - xDrain) / Math.max(toe - xDrain, 1e-6);
-        }
-      } else {
-        p_at_base = pH + (pT - pH) * (xmid - heel) / Math.max(B, 1e-6);
-      }
-      // Pressure increases linearly below base by full γ_w per foot of key depth
-      const p_top = Math.max(0, p_at_base);                      // ksf at key top (= base)
-      const p_bot = p_top + gw * (yTop - yBot) / 1000;          // ksf at key bottom
-      const p_avg = (p_top + p_bot) / 2;
-      const Fh = p_avg * (yTop - yBot);               // kips/ft, driving (upstream → downstream)
-      if (Math.abs(Fh) < 1e-4) continue;
-      const arm = ((yTop + yBot) / 2) - base;
+  // 9. Additional user-defined horizontal loads
+  if (Array.isArray(p.addHLoads)) {
+    p.addHLoads.forEach(al => {
+      if (Math.abs(al.load) < 1e-9) return;
+      const xAbs = heel + al.x;
+      const yAbs = al.y;
+      const arm  = yAbs - base;
       hForces.push({
-        label: 'Base Face Hydrostatic',
-        F: Fh,
+        label: al.label || 'Added H Load',
+        F: al.load,
         arm,
-        moment: Fh * arm,
-        x: xmid,
-        yMid: (yTop + yBot) / 2,
-        yTop, yBot,
-        p_top, p_bot,
-        note: `key face @ x=${xmid.toFixed(1)} ft, p_top=${(p_top*1000).toFixed(0)} psf, ${Fh.toFixed(2)} k/ft driving`
+        moment: al.load * arm,
+        xAbs, yAbs,
+        note: `added horiz load @ x=${al.x.toFixed(2)} ft from heel, y=${al.y.toFixed(2)} ft`
       });
-    }
+    });
   }
 
   // Sums
@@ -2158,42 +2145,18 @@ function drawLoadDiagram(res) {
     ctx.textAlign = 'left';
   }
 
-  // === UPSTREAM-FACING FACE HYDROSTATIC (keys, recessed steps) ===
-  // Draw trapezoidal pressure diagram: wider at bottom (higher pressure), narrower at top.
-  // Arrow points from the pressure diagram toward the concrete face (driving = downstream).
-  loads.hForces.filter(f => f.label === 'Base Face Hydrostatic' && f.x !== undefined).forEach(f => {
-    const xFace = px(f.x);
-    const yTopC = py(f.yTop);   // canvas y of face top (stored)
-    const yBotC = py(f.yBot);   // canvas y of face bottom
-    const yMidC = py(f.yMid);
-
-    // Pressure widths from stored p_top/p_bot (ksf), scaled to pixels
-    // Convert ksf → equivalent water depth (ft) → canvas pixels
-    const pScale = (1000 / p.waterUW) * s * 0.7; // ksf → ft-depth → px
-    const w_top = Math.max(0, (f.p_top || 0) * pScale);
-    const w_bot = Math.max(0, (f.p_bot || 0) * pScale);
-    const maxW  = Math.max(w_bot, 12);
-
-    // Trapezoidal pressure shape to the left of the face (upstream side)
-    ctx.fillStyle   = 'rgba(184,67,31,0.22)';
-    ctx.strokeStyle = '#b8431f';
-    ctx.lineWidth   = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(xFace, yTopC);
-    ctx.lineTo(xFace - w_top, yTopC);
-    ctx.lineTo(xFace - w_bot, yBotC);
-    ctx.lineTo(xFace, yBotC);
-    ctx.closePath();
-    ctx.fill(); ctx.stroke();
-
-    // Resultant arrow at centroid of trapezoid → toward face
-    const w_res = (w_top + 2 * w_bot) / 3; // centroid of trapezoid width
-    ctx.strokeStyle = '#b8431f'; ctx.fillStyle = '#b8431f'; ctx.lineWidth = 2;
-    arrow(ctx, xFace - w_res, yMidC, xFace, yMidC, 6);
-
-    // Force label
-    ctx.font = 'bold 9px monospace'; ctx.textAlign = 'right';
-    ctx.fillText(f.F.toFixed(2) + ' k/ft', xFace - maxW - 3, yMidC - 3);
+  // === ADDITIONAL USER-DEFINED HORIZONTAL LOADS ===
+  loads.hForces.filter(f => f.xAbs !== undefined && f.yAbs !== undefined).forEach(f => {
+    const xC = px(f.xAbs);
+    const yC = py(f.yAbs);
+    const arrowLen = 40;
+    const x0 = f.F >= 0 ? xC - arrowLen : xC + arrowLen;
+    ctx.strokeStyle = '#8b5e00'; ctx.fillStyle = '#8b5e00'; ctx.lineWidth = 2;
+    arrow(ctx, x0, yC, xC, yC, 6);
+    ctx.font = 'bold 9px monospace';
+    ctx.textAlign = f.F >= 0 ? 'right' : 'left';
+    const lx = f.F >= 0 ? x0 - 3 : x0 + 3;
+    ctx.fillText((f.label || 'H Load') + ' ' + f.F.toFixed(2) + 'k', lx, yC - 4);
     ctx.textAlign = 'left';
   });
 
@@ -2739,7 +2702,7 @@ const SAVED_INPUT_IDS = [
   'concUW','waterUW','phi','cohesion','useCohesion','foundationType',
   'hasDrain','drainDist','drainEff','hasUpstreamSilt','siltUpElev','siltUpUW','siltUpPhi',
   'hasDownstreamSoil','siltDnElev','siltDnUW','siltDnPhi','kh','kv','useWestergaard',
-  'hasIce','iceLoad','iceElev','hasKeyHydrostatic','overrideConc','manWeight','manCgX','manCgY',
+  'hasIce','iceLoad','iceElev','overrideConc','manWeight','manCgX','manCgY',
   'projName','engName','reportDate','projNum','reportNotes','scaleVal','unitSel','geoBaseElev'
 ];
 function collectProject() {
@@ -2761,7 +2724,8 @@ function collectProject() {
     datumPy: state.datumPy,
     inputs,
     designCode,
-    addLoads: addLoadState
+    addLoads: addLoadState,
+    addHLoads: addHLoadState
   };
 }
 function exportProject() {
@@ -2804,8 +2768,11 @@ function importProject(file) {
       document.getElementById('projTitle').value = data.title || '';
       // Additional loads
       addLoadState.length = 0;
-      (data.addLoads || []).forEach(l => addLoadState.push({ label: l.label || '', load: l.load || 0, x: l.x || 0 }));
+      (data.addLoads || []).forEach(l => addLoadState.push({ label: l.label || '', load: l.load || 0, x: l.x || 0, y: l.y || 0 }));
       renderAddLoadTable();
+      addHLoadState.length = 0;
+      (data.addHLoads || []).forEach(l => addHLoadState.push({ label: l.label || '', load: l.load || 0, x: l.x || 0, y: l.y || 0 }));
+      renderAddHLoadTable();
       // Refresh UI
       syncProjTitle();
       toggleSiltUI();
