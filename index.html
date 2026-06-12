@@ -377,6 +377,14 @@ canvas{display:block;border:1px solid #e0e0e0;border-radius:8px;background:#fff}
   </div>
 
   <div class="card">
+    <div class="card-title">Shear Key / Foundation Step Hydrostatic</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+      <label class="check-label"><input type="checkbox" id="hasKeyHydrostatic" checked onchange="onInputChange()"> Apply lateral hydrostatic load on upstream-facing foundation key faces</label>
+    </div>
+    <div class="note">Applies trapezoidal hydrostatic pressure to any vertical concrete face below the base that is recessed from the main upstream boundary (shear keys, foundation steps). Pressure at top of face matches uplift at that x-location; increases with depth below grade.</div>
+  </div>
+
+  <div class="card">
     <div class="card-title">Design Code</div>
     <div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:8px">
       <label class="check-label"><input type="radio" name="designCode" value="ferc" checked> FERC Chapter 3</label>
@@ -1123,6 +1131,7 @@ function getParams() {
     kv: gv('kv'),
     useWestergaard: gb('useWestergaard'),
     hasIce: gb('hasIce'),
+    hasKeyHydrostatic: gb('hasKeyHydrostatic'),
     iceLoad: gv('iceLoad'),
     iceElev: document.getElementById('iceElev').value === '' ? null : gv('iceElev'),
     overrideConc: gb('overrideConc'),
@@ -1524,7 +1533,7 @@ function calcLoads(pts, p, caseKey) {
   //    (upstream-facing ⇒ driving +, downstream-facing ⇒ resisting −). Flat (horizontal)
   //    base segments contribute no horizontal load and the vertical upstream face is
   //    excluded (already captured by the headwater triangle).
-  if (hd > 0) {
+  if (hd > 0 && p.hasKeyHydrostatic) {
     for (let i = 0; i < pts.length; i++) {
       const a = pts[i], b = pts[(i + 1) % pts.length];
       const dx = b.x - a.x, dy = b.y - a.y;
@@ -2730,7 +2739,7 @@ const SAVED_INPUT_IDS = [
   'concUW','waterUW','phi','cohesion','useCohesion','foundationType',
   'hasDrain','drainDist','drainEff','hasUpstreamSilt','siltUpElev','siltUpUW','siltUpPhi',
   'hasDownstreamSoil','siltDnElev','siltDnUW','siltDnPhi','kh','kv','useWestergaard',
-  'hasIce','iceLoad','iceElev','overrideConc','manWeight','manCgX','manCgY',
+  'hasIce','iceLoad','iceElev','hasKeyHydrostatic','overrideConc','manWeight','manCgX','manCgY',
   'projName','engName','reportDate','projNum','reportNotes','scaleVal','unitSel','geoBaseElev'
 ];
 function collectProject() {
