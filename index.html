@@ -460,6 +460,15 @@ canvas{display:block;border:1px solid #e0e0e0;border-radius:8px;background:#fff}
   <div class="card">
     <div class="card-title">Generate Report</div>
     <div class="note" style="margin-bottom:10px">Generates a print-ready report in a new window. Run analysis first.</div>
+    <div style="margin-bottom:10px">
+      <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px">Include Load Cases:</label>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <label class="check-label"><input type="checkbox" id="rpt_usual" checked> Usual</label>
+        <label class="check-label"><input type="checkbox" id="rpt_flood" checked> Flood</label>
+        <label class="check-label"><input type="checkbox" id="rpt_seismic" checked> Seismic</label>
+        <label class="check-label"><input type="checkbox" id="rpt_extreme" checked> Extreme</label>
+      </div>
+    </div>
     <button class="btn btn-p" onclick="generateReport()">&#128196; Generate &amp; Open Report</button>
   </div>
 </div>
@@ -1678,7 +1687,7 @@ function calcLoads(pts, p, caseKey) {
     const arm1_fromToe = B - (heel - heel + arm1_fromHeel);
     // Trapezoid 2: drain to toe
     const U2 = 0.5 * (pD + pT) * (B - d);
-    const arm2_fromHeel = d + (B - d) * (2 * pD + pT) / (3 * (pD + pT + 1e-12));
+    const arm2_fromHeel = d + (B - d) * (pD + 2 * pT) / (3 * (pD + pT + 1e-12));
     const arm2_fromToe = B - arm2_fromHeel;
     upliftForce = -(U1 + U2);
     upliftMoment = -(U1 * arm1_fromToe + U2 * arm2_fromToe);
@@ -1811,6 +1820,44 @@ function calcLoads(pts, p, caseKey) {
         note: `added horiz load @ x=${al.x.toFixed(2)} ft from heel, y=${al.y.toFixed(2)} ft`
       });
     });
+  }
+
+  // Overtopping nappe: weight of water sitting on top of dam
+  if (isOvertopping) {
+    const segs = [];
+    for (let i = 0; i < pts.length; i++) segs.push([pts[i], pts[(i + 1) % pts.length]]);
+    const N_samp = 200;
+    const dx = B / N_samp;
+    let nappeArea = 0, nappeXMoment = 0;
+    for (let i = 0; i <= N_samp; i++) {
+      const x = heel + dx * i;
+      const waterY = hw + (tw - hw) * (x - heel) / B;
+      let damY = base;
+      for (const [a, b] of segs) {
+        const xlo = Math.min(a.x, b.x), xhi = Math.max(a.x, b.x);
+        if (x < xlo - 1e-9 || x > xhi + 1e-9) continue;
+        const y = Math.abs(b.x - a.x) < 1e-9
+          ? Math.max(a.y, b.y)
+          : a.y + (b.y - a.y) * (x - a.x) / (b.x - a.x);
+        if (y > damY) damY = y;
+      }
+      const h = Math.max(0, waterY - damY);
+      const w = (i === 0 || i === N_samp) ? 0.5 : 1.0;
+      nappeArea += w * h * dx;
+      nappeXMoment += w * h * x * dx;
+    }
+    if (nappeArea > 0.01) {
+      const nappeF = nappeArea * gw / 1000; // k/ft downward (positive)
+      const nappeCx = nappeXMoment / nappeArea;
+      const nappeArm = toe - nappeCx;
+      vForces.push({
+        label: 'Overtopping Nappe',
+        F: nappeF,
+        arm: nappeArm,
+        moment: nappeF * nappeArm,
+        note: `Area=${nappeArea.toFixed(1)} ft², x̄=${(nappeCx - heel).toFixed(1)} ft from heel`
+      });
+    }
   }
 
   // Sums
@@ -2166,22 +2213,54 @@ function drawLoadDiagram(res) {
     drawWaterWedge(loads.downstreamWedge, 'WD', '#5599dd', 'rgba(85,153,221,0.22)');
   }
 
-  // === OVERTOPPING NAPPE INDICATOR ===
+  // === OVERTOPPING NAPPE ===
   if (loads.isOvertopping && p.inclOvertopping !== false) {
     const heelX = px(heel), toeX = px(toe);
     const hwY = py(p.baseElev + hd);
     const twY = py(p.baseElev + (loads.td || 0));
-    // Draw a cubic bezier nappe curve from HW to TW
+    // Build polygon: water surface line from HW to TW, then trace dam top back
+    const damSegs = [];
+    for (let i = 0; i < pts.length; i++) damSegs.push([pts[i], pts[(i + 1) % pts.length]]);
+    const N_draw = 80;
+    const topProfile = [];
+    for (let i = 0; i <= N_draw; i++) {
+      const xr = heel + (toe - heel) * i / N_draw;
+      const waterYr = (p.baseElev + hd) + ((p.baseElev + (loads.td || 0)) - (p.baseElev + hd)) * i / N_draw;
+      let damYr = p.baseElev;
+      for (const [a, b] of damSegs) {
+        const xlo = Math.min(a.x, b.x), xhi = Math.max(a.x, b.x);
+        if (xr < xlo - 1e-9 || xr > xhi + 1e-9) continue;
+        const yr = Math.abs(b.x - a.x) < 1e-9 ? Math.max(a.y, b.y) : a.y + (b.y - a.y) * (xr - a.x) / (b.x - a.x);
+        if (yr > damYr) damYr = yr;
+      }
+      topProfile.push({ xr, waterYr, damYr });
+    }
+    // Fill nappe area (water surface line → dam top profile)
     ctx.beginPath();
     ctx.moveTo(heelX, hwY);
-    ctx.bezierCurveTo(heelX, hwY + 30, toeX, twY - 30, toeX, twY);
-    ctx.strokeStyle = '#0077cc'; ctx.lineWidth = 2.5;
-    ctx.setLineDash([6, 4]);
-    ctx.stroke();
+    ctx.lineTo(toeX, twY);
+    for (let i = N_draw; i >= 0; i--) {
+      const tp = topProfile[i];
+      if (Math.max(0, tp.waterYr - tp.damYr) > 0.01) {
+        ctx.lineTo(px(tp.xr), py(tp.damYr));
+      }
+    }
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(85,153,221,0.30)';
+    ctx.fill();
+    // Draw water surface line
+    ctx.beginPath();
+    ctx.moveTo(heelX, hwY);
+    ctx.lineTo(toeX, twY);
+    ctx.strokeStyle = '#1a6cc7'; ctx.lineWidth = 2;
     ctx.setLineDash([]);
+    ctx.stroke();
+    // Label
+    const nappeF = loads.vForces.find(f => f.label === 'Overtopping Nappe');
     ctx.font = 'bold 10px monospace'; ctx.fillStyle = '#0055aa';
     ctx.textAlign = 'center';
-    ctx.fillText('OVERTOPPING', (heelX + toeX) / 2, hwY - 8);
+    const midNappeY = (hwY + twY) / 2 - 10;
+    ctx.fillText('NAPPE' + (nappeF ? ' = ' + nappeF.F.toFixed(2) + ' k/ft↓' : ''), (heelX + toeX) / 2, midNappeY);
     ctx.textAlign = 'left';
   }
 
@@ -2814,7 +2893,11 @@ function generateReport() {
   const projNum = document.getElementById('projNum').value || '';
   const notes = document.getElementById('reportNotes').value || '';
   const p = getParams();
-  const caseKeys = ['usual', 'flood', 'seismic', 'extreme'];
+  const caseKeys = ['usual', 'flood', 'seismic', 'extreme'].filter(k => {
+    const el = document.getElementById('rpt_' + k);
+    return el ? el.checked : true;
+  });
+  if (caseKeys.length === 0) { alert('Select at least one load case to include.'); return; }
 
   // Capture geometry figure
   updateGeoFig();
