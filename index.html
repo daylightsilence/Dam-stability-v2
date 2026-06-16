@@ -1073,7 +1073,8 @@ function updateGeoFig(canvasId = 'geoFigCanvas') {
   ctx.setLineDash([]);
   ctx.fillStyle = '#1a6cc7';
   ctx.font = '11px system-ui';
-  ctx.fillText('HW = ' + p.hwNormal.toFixed(2) + ' ft', pad - 8, py2(p.hwNormal) - 4);
+  const hwLabelYOffset = (py2(p.hwNormal) - py2(p.crestElev) < 16) ? 14 : -4;
+  ctx.fillText('HW = ' + p.hwNormal.toFixed(2) + ' ft', pad - 8, py2(p.hwNormal) + hwLabelYOffset);
 
   // TW line
   if (p.twNormal > p.baseElev) {
@@ -1111,8 +1112,114 @@ function updateGeoFig(canvasId = 'geoFigCanvas') {
   ctx.textAlign = 'center';
   ctx.fillText('Heel', px2(Math.min(...allX)), py2(p.baseElev) + 18);
   ctx.fillText('Toe', px2(Math.max(...allX)), py2(p.baseElev) + 18);
-  ctx.fillText('Base Elev = ' + p.baseElev.toFixed(2) + ' ft', (px2(Math.min(...allX)) + px2(Math.max(...allX))) / 2, py2(p.baseElev) + 30);
   ctx.textAlign = 'left';
+
+  // === KEY ELEVATION DASHED LINES ===
+  {
+    const heelXp = px2(Math.min(...allX));
+    const toeXp  = px2(Math.max(...allX));
+    const drawElevLine = (elev, label, labelYShift, clr) => {
+      const yp = py2(elev);
+      ctx.strokeStyle = clr || '#888';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([5, 4]);
+      ctx.beginPath();
+      ctx.moveTo(pad - 20, yp);
+      ctx.lineTo(W - pad + 20, yp);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = clr || '#555';
+      ctx.font = '10px system-ui';
+      ctx.textAlign = 'left';
+      ctx.fillText(label, pad - 18, yp + labelYShift);
+    };
+    drawElevLine(p.baseElev, 'Base EL=' + p.baseElev.toFixed(1) + ' ft', 10, '#666');
+    drawElevLine(p.hwNormal, 'HW EL=' + p.hwNormal.toFixed(1) + ' ft', -3, '#1a6cc7');
+    if (p.crestElev > p.baseElev) {
+      drawElevLine(p.crestElev, 'Crest EL=' + p.crestElev.toFixed(1) + ' ft', -3, '#555');
+    }
+  }
+
+  // === Y-AXIS ELEVATION LABELS (left margin ticks) ===
+  {
+    const elevRange = figMaxY - figMinY;
+    const rawStep = elevRange / 5;
+    const mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
+    const niceSteps = [1, 2, 5, 10];
+    let step = niceSteps.reduce((best, ns) => Math.abs(ns * mag - rawStep) < Math.abs(best - rawStep) ? ns * mag : best, niceSteps[0] * mag);
+    if (step < 1) step = 1;
+    const firstTick = Math.ceil(figMinY / step) * step;
+    ctx.strokeStyle = '#aaa';
+    ctx.lineWidth = 1;
+    ctx.fillStyle = '#555';
+    ctx.font = '9px system-ui';
+    ctx.textAlign = 'right';
+    for (let elev = firstTick; elev <= figMaxY; elev += step) {
+      const yp = py2(elev);
+      ctx.beginPath();
+      ctx.moveTo(pad - 20, yp);
+      ctx.lineTo(pad - 12, yp);
+      ctx.stroke();
+      ctx.fillText(elev.toFixed(0), pad - 22, yp + 4);
+    }
+    ctx.textAlign = 'left';
+  }
+
+  // === BASE-WIDTH DIMENSION LINE (below base) ===
+  {
+    const heelXp = px2(Math.min(...allX));
+    const toeXp  = px2(Math.max(...allX));
+    const dimY   = py2(p.baseElev) + 35;
+    const tickH  = 5;
+    ctx.strokeStyle = '#444';
+    ctx.lineWidth   = 1;
+    // Horizontal dimension line with arrows
+    arrow(ctx, heelXp, dimY, toeXp, dimY, 6);
+    arrow(ctx, toeXp, dimY, heelXp, dimY, 6);
+    // Tick marks at ends
+    ctx.beginPath();
+    ctx.moveTo(heelXp, dimY - tickH); ctx.lineTo(heelXp, dimY + tickH);
+    ctx.moveTo(toeXp,  dimY - tickH); ctx.lineTo(toeXp,  dimY + tickH);
+    ctx.stroke();
+    // Label
+    const B_val = Math.max(...allX) - Math.min(...allX);
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 10px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('B = ' + B_val.toFixed(1) + ' ft', (heelXp + toeXp) / 2, dimY - 4);
+    ctx.textAlign = 'left';
+  }
+
+  // === HEIGHT DIMENSION LINE (right side) ===
+  {
+    const highestY = Math.max(...pts.map(n => n.y));
+    const toeXp    = px2(Math.max(...allX));
+    const dimX     = toeXp + 28;
+    const baseYp   = py2(p.baseElev);
+    const topYp    = py2(highestY);
+    const tickW    = 5;
+    ctx.strokeStyle = '#444';
+    ctx.lineWidth   = 1;
+    // Vertical dimension line with arrows
+    arrow(ctx, dimX, baseYp, dimX, topYp, 6);
+    arrow(ctx, dimX, topYp,  dimX, baseYp, 6);
+    // Tick marks
+    ctx.beginPath();
+    ctx.moveTo(dimX - tickW, baseYp); ctx.lineTo(dimX + tickW, baseYp);
+    ctx.moveTo(dimX - tickW, topYp);  ctx.lineTo(dimX + tickW, topYp);
+    ctx.stroke();
+    // Label (rotated)
+    const H_val = highestY - p.baseElev;
+    ctx.save();
+    ctx.translate(dimX + 14, (baseYp + topYp) / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 10px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('H = ' + H_val.toFixed(1) + ' ft', 0, 0);
+    ctx.restore();
+    ctx.textAlign = 'left';
+  }
 
   // Scale legend (#13)
   drawScaleLegend(ctx, W, H, s);
@@ -1983,7 +2090,12 @@ function drawLoadDiagram(res) {
         const midX = (heelPx + toePx) / 2;
         const midDepth = (upliftH + upliftT) / 2;
         ctx.fillStyle = '#c0392b'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
-        ctx.fillText('U = ' + Math.abs(upliftF.F).toFixed(2) + ' k/ft', midX, baseY + midDepth * 0.5 + 14);
+        ctx.fillText('U = ' + Math.abs(upliftF.F).toFixed(2) + ' k/ft', midX, baseY + midDepth * 0.5 + 28);
+        // Area and centroid annotation for uplift trapezoid
+        const upliftArea = 0.5 * (hwIntensity + (loads.upliftPressures && loads.upliftPressures.pT !== undefined ? loads.upliftPressures.pT / 1000 : (p.waterUW || 62.4) * td / 1000)) * B; // k/ft
+        const centFromHeel = upliftF.x !== undefined ? (upliftF.x - heel).toFixed(1) : (B / 2).toFixed(1);
+        ctx.font = '8px monospace'; ctx.fillStyle = '#c0392b';
+        ctx.fillText('A=' + Math.abs(upliftF.F).toFixed(2) + ' k/ft  x̄=' + centFromHeel + ' ft', midX, baseY + midDepth * 0.5 + 42);
       }
       ctx.textAlign = 'left';
     }
@@ -2023,9 +2135,27 @@ function drawLoadDiagram(res) {
     const botY = Math.min(topY + 50, py(p.baseElev) - 4);
     ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 2.5;
     arrow(ctx, cx, topY, cx, botY, 8);
-    ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center';
+    ctx.font = 'bold 10px monospace';
     ctx.fillStyle = color;
-    ctx.fillText(label + ' = ' + wedge.F.toFixed(2) + ' k/ft', cx, topY - 6);
+    if (label === 'WU') {
+      ctx.textAlign = 'right';
+      ctx.fillText(label + ' = ' + wedge.F.toFixed(2) + ' k/ft', cx - 5, topY - 8);
+      // Area and centroid annotation
+      if (wedge.area !== undefined) {
+        ctx.font = '8px monospace';
+        const centFromHeel = (wedge.centroid.x - heel).toFixed(1);
+        ctx.fillText('A=' + wedge.area.toFixed(2) + ' ft²  x̄=' + centFromHeel + ' ft', cx - 5, topY - 18);
+      }
+    } else {
+      ctx.textAlign = 'left';
+      ctx.fillText(label + ' = ' + wedge.F.toFixed(2) + ' k/ft', cx + 5, topY - 8);
+      // Area and centroid annotation
+      if (wedge.area !== undefined) {
+        ctx.font = '8px monospace';
+        const centFromHeel = (wedge.centroid.x - heel).toFixed(1);
+        ctx.fillText('A=' + wedge.area.toFixed(2) + ' ft²  x̄=' + centFromHeel + ' ft', cx + 5, topY - 18);
+      }
+    }
     ctx.textAlign = 'left';
   }
 
@@ -2033,7 +2163,7 @@ function drawLoadDiagram(res) {
     drawWaterWedge(loads.upstreamWedge, 'WU', '#1a5a9a', 'rgba(26,90,154,0.18)');
   }
   if (loads.downstreamWedge) {
-    drawWaterWedge(loads.downstreamWedge, 'WD', '#2a7a3a', 'rgba(42,122,58,0.18)');
+    drawWaterWedge(loads.downstreamWedge, 'WD', '#5599dd', 'rgba(85,153,221,0.22)');
   }
 
   // === OVERTOPPING NAPPE INDICATOR ===
@@ -2093,6 +2223,12 @@ function drawLoadDiagram(res) {
     if (FHW) ctx.fillText('HW = ' + FHW.F.toFixed(2) + ' k/ft', heelX - resW - 24, yRes - 5);
     ctx.font = '9px monospace';
     ctx.fillText(hwIntensity.toFixed(2) + ' ksf', heelX - triW - 4, baseY + 12);
+    // Area and centroid annotation (area = resultant in k/ft; centroid elevation from base = hd/3)
+    {
+      const hwForceArea = 0.5 * hwIntensity * hd; // k/ft (force resultant = area of pressure diagram)
+      ctx.font = '8px monospace'; ctx.textAlign = 'right'; ctx.fillStyle = '#1a6cc7';
+      ctx.fillText('A=' + hwForceArea.toFixed(2) + ' k/ft²  x̄=heel', heelX - resW - 24, yRes + 10);
+    }
     ctx.textAlign = 'left';
   }
 
@@ -2133,6 +2269,13 @@ function drawLoadDiagram(res) {
     if (FTW) ctx.fillText('TW = ' + Math.abs(FTW.F).toFixed(2) + ' k/ft', toeX + resW + 24, yRes - 5);
     ctx.font = '9px monospace';
     ctx.fillText(twIntensity.toFixed(2) + ' ksf', toeX + triW + 4, baseY + 12);
+    // Area and centroid annotation
+    {
+      const twForceArea = 0.5 * twIntensity * td; // k/ft
+      const twCentXFromHeel = (toe - heel).toFixed(1); // toe is B ft from heel
+      ctx.font = '8px monospace'; ctx.textAlign = 'left'; ctx.fillStyle = '#5599dd';
+      ctx.fillText('A=' + twForceArea.toFixed(2) + ' k/ft²  x̄=toe', toeX + resW + 24, yRes + 10);
+    }
     ctx.textAlign = 'left';
   }
 
@@ -2222,6 +2365,12 @@ function drawLoadDiagram(res) {
     if (siltF) ctx.fillText('S = ' + siltF.F.toFixed(2) + ' k/ft', heelX - resW - 22, ySilt - 4);
     ctx.font = '9px monospace';
     ctx.fillText('silt EL ' + p.siltUpElev.toFixed(0), heelX - triW - 4, topY + 10);
+    // Area and centroid annotation
+    {
+      const siltArea = 0.5 * siltIntensity * hs; // k/ft
+      ctx.font = '8px monospace'; ctx.textAlign = 'right'; ctx.fillStyle = '#8B6914';
+      ctx.fillText('A=' + siltArea.toFixed(2) + ' k/ft²  x̄=heel', heelX - resW - 22, ySilt + 10);
+    }
     ctx.textAlign = 'left';
   }
   // Downstream soil build-up (visual passive wedge against the toe)
@@ -2244,6 +2393,12 @@ function drawLoadDiagram(res) {
     ctx.strokeStyle = '#785a28'; ctx.lineWidth = 1.4; ctx.stroke();
     ctx.fillStyle = '#785a28'; ctx.font = '9px monospace'; ctx.textAlign = 'left';
     ctx.fillText('soil EL ' + p.siltDnElev.toFixed(0), toeX + 4, topY + 10);
+    // Area and centroid annotation
+    {
+      const soilArea = 0.5 * soilIntensity * hs; // k/ft
+      ctx.font = '8px monospace'; ctx.fillStyle = '#785a28';
+      ctx.fillText('A=' + soilArea.toFixed(2) + ' k/ft²  x̄=toe', toeX + 4, topY + 20);
+    }
     ctx.textAlign = 'left';
   }
 
