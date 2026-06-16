@@ -1679,8 +1679,11 @@ function calcLoads(pts, p, caseKey) {
 
   if (p.hasDrain && p.drainDist > 0 && p.drainDist < B) {
     const d = p.drainDist; // from heel
-    // Pressure at drain: pD = pT + (1-E)*(pH - pT) but USACE: pD = pT + (1-E)*(pH - pT)
-    const pD = pT + (1 - p.drainEff) * (pH - pT);
+    // FERC: baseline is the linear interpolated pressure at drain position.
+    // E=0 → no reduction (stays on linear line heel→toe).
+    // E=1 → fully reduced to tailwater at drain, then flat pT to toe.
+    const pLinear = pH - (pH - pT) * (d / B); // linear pressure at drain (no drain effect)
+    const pD = pLinear - p.drainEff * (pLinear - pT); // reduced by efficiency
     // Trapezoid 1: heel to drain
     const U1 = 0.5 * (pH + pD) * d;
     const arm1_fromHeel = d * (pH + 2 * pD) / (3 * (pH + pD + 1e-12));
@@ -1869,7 +1872,8 @@ function calcLoads(pts, p, caseKey) {
   // Store uplift pressure intensities (psf) for drawing the trapezoidal diagram
   const upliftPressures = { pH: pH * 1000, pT: pT * 1000 };
   if (p.hasDrain && p.drainDist > 0 && p.drainDist < B) {
-    upliftPressures.pD = (pT + (1 - p.drainEff) * (pH - pT)) * 1000;
+    const _pLinear = pH - (pH - pT) * (p.drainDist / B);
+    upliftPressures.pD = (_pLinear - p.drainEff * (_pLinear - pT)) * 1000;
     upliftPressures.drainX = heel + p.drainDist;
   }
   return { vForces, hForces, sumV, sumH, sumMV, sumMH, B, heel, toe, hd, td, W, cx, cy, area, upliftPressures, upstreamWedge, downstreamWedge, isOvertopping, landingSegs };
