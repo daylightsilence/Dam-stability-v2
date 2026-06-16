@@ -1684,7 +1684,7 @@ function calcLoads(pts, p, caseKey) {
     // Trapezoid 1: heel to drain
     const U1 = 0.5 * (pH + pD) * d;
     const arm1_fromHeel = d * (pH + 2 * pD) / (3 * (pH + pD + 1e-12));
-    const arm1_fromToe = B - (heel - heel + arm1_fromHeel);
+    const arm1_fromToe = B - arm1_fromHeel;
     // Trapezoid 2: drain to toe
     const U2 = 0.5 * (pD + pT) * (B - d);
     const arm2_fromHeel = d + (B - d) * (pD + 2 * pT) / (3 * (pD + pT + 1e-12));
@@ -1699,9 +1699,9 @@ function calcLoads(pts, p, caseKey) {
       note: `pHeel=${(pH*1000).toFixed(0)}, pDrain=${(pD*1000).toFixed(0)}, pToe=${(pT*1000).toFixed(0)} psf`
     });
   } else {
-    // Linear uplift, no drain
+    // Linear uplift, no drain — arm measured from toe (consistent with drain case)
     upliftForce = -0.5 * (pH + pT) * B;
-    const uArm = B * (pH + 2 * pT) / (3 * (pH + pT + 1e-12));
+    const uArm = B * (2 * pH + pT) / (3 * (pH + pT + 1e-12)); // arm from toe
     upliftMoment = upliftForce * uArm;
     vForces.push({
       label: 'Uplift U (no drain)',
