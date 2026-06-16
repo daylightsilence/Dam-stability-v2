@@ -274,6 +274,14 @@ canvas{display:block;border:1px solid #e0e0e0;border-radius:8px;background:#fff}
   </div>
 
   <div class="card">
+    <div class="card-title">Water Load Options</div>
+    <div class="note" style="margin-bottom:8px">Control which vertical hydrostatic forces are included. If headwater/tailwater are both above the concrete profile (overtopping), a nappe indicator can be shown instead.</div>
+    <label class="check-label"><input type="checkbox" id="inclUpstreamWater" checked onchange="onInputChange()"> Include upstream downward water force</label>
+    <label class="check-label" style="margin-top:4px"><input type="checkbox" id="inclDownstreamWater" checked onchange="onInputChange()"> Include downstream downward water force</label>
+    <label class="check-label" style="margin-top:4px"><input type="checkbox" id="inclOvertopping" checked onchange="onInputChange()"> Show overtopping nappe indicator (if detected)</label>
+  </div>
+
+  <div class="card">
     <div class="card-title">Concrete Weight &amp; Centroid</div>
     <div class="note" style="margin-bottom:8px">Calculated from the geometry polygon. Tick "Override" to enter values manually (e.g. to account for galleries or voids).</div>
     <div class="f3">
@@ -1150,7 +1158,10 @@ function getParams() {
     manCgY: gv('manCgY'),
     addLoads: getAdditionalLoads(),
     addHLoads: addHLoadState.map(r => ({ label: r.label || 'Added H Load', load: r.load, x: r.x, y: r.y })),
-    designCode: document.querySelector('input[name=designCode]:checked')?.value || 'ferc'
+    designCode: document.querySelector('input[name=designCode]:checked')?.value || 'ferc',
+    inclUpstreamWater: gb('inclUpstreamWater'),
+    inclDownstreamWater: gb('inclDownstreamWater'),
+    inclOvertopping: gb('inclOvertopping')
   };
 }
 
@@ -1324,6 +1335,112 @@ const LOAD_CASES = {
   extreme: { hwKey: 'hwFlood',  twKey: 'twFlood',  seismic: true,  label: 'Extreme (Seismic + Flood)' }
 };
 
+// === WATER WEDGE GEOMETRY ===
+// Computes the closed water polygon above/around the concrete for upstream or downstream.
+// isUpstream=true: from vertical line at leftmost concrete point, horizontal ray rightward
+//   to first concrete face intersection, then trace concrete down to heel, close horizontally.
+// isUpstream=false: from rightmost concrete point at tw, horizontal ray leftward to first
+//   concrete face intersection, then trace concrete down to toe, close horizontally.
+// Returns { F, arm (from toe), moment, polygon (real coords), centroid } or null.
+function computeWaterWedge(pts, heel, toe, waterElev, base, gw, isUpstream) {
+  if (waterElev <= base) return null;
+  const n = pts.length;
+  const allX = pts.map(p => p.x);
+  const allY = pts.map(p => p.y);
+  const minX = Math.min(...allX), maxX = Math.max(...allX);
+  const maxY = Math.max(...allY); // highest point
+
+  // Check overtopping: water level is above the highest concrete point
+  const isOvertopping = waterElev > maxY;
+
+  // Reference vertical line x (leftmost for upstream, rightmost for downstream)
+  const refX = isUpstream ? minX : maxX;
+
+  // Cast horizontal ray from (refX, waterElev) toward the concrete face
+  // For upstream: ray goes rightward (+x) looking for the first concrete edge intersection
+  // For downstream: ray goes leftward (-x) looking for the first concrete edge intersection
+  let bestX = null, bestEdgeIdx = -1, bestT = 0;
+  for (let i = 0; i < n; i++) {
+    const a = pts[i], b = pts[(i + 1) % n];
+    // Edge must straddle the waterElev
+    if ((a.y - waterElev) * (b.y - waterElev) >= 0) continue;
+    const t = (waterElev - a.y) / (b.y - a.y);
+    const x = a.x + t * (b.x - a.x);
+    if (isUpstream) {
+      // Looking rightward: x must be > refX (not the far-left vertical itself)
+      if (x > refX + 0.01 && (bestX === null || x < bestX)) {
+        bestX = x; bestEdgeIdx = i; bestT = t;
+      }
+    } else {
+      // Looking leftward: x must be < refX
+      if (x < refX - 0.01 && (bestX === null || x > bestX)) {
+        bestX = x; bestEdgeIdx = i; bestT = t;
+      }
+    }
+  }
+
+  // If no intersection found and not overtopping, water surface is below the face — no wedge
+  if (bestX === null && !isOvertopping) return null;
+
+  // If overtopping (water above all concrete), return a flag with no polygon
+  if (isOvertopping) return { overtopping: true };
+
+  // Point A: where water surface meets the vertical reference line
+  const ptA = { x: refX, y: waterElev };
+  // Point B: where horizontal ray hits the concrete face
+  const ptB = { x: bestX, y: waterElev };
+
+  // Find the heel or toe corner node index in pts[]
+  const tol = (Math.max(...allY) - Math.min(...allY)) * 0.05 + 0.5;
+  const baseNodes = pts.filter(p => p.y <= Math.min(...allY) + tol);
+  let cornerNode;
+  if (isUpstream) {
+    cornerNode = baseNodes.reduce((b, p) => p.x < b.x ? p : b, baseNodes[0]);
+  } else {
+    cornerNode = baseNodes.reduce((b, p) => p.x > b.x ? p : b, baseNodes[0]);
+  }
+  const cornerIdx = pts.indexOf(cornerNode);
+
+  // Determine which end of the intersected edge is below the waterElev (toward base)
+  const edgeA = pts[bestEdgeIdx], edgeB = pts[(bestEdgeIdx + 1) % n];
+  // dir=1 means traverse forward (edgeB side is lower), dir=-1 means backward
+  const dir = (edgeB.y < waterElev) ? 1 : -1;
+
+  // Collect concrete boundary nodes from ptB down to the corner (heel or toe)
+  const pathNodes = [];
+  let idx = dir > 0 ? (bestEdgeIdx + 1) % n : bestEdgeIdx;
+  for (let step = 0; step <= n; step++) {
+    pathNodes.push({ x: pts[idx].x, y: pts[idx].y });
+    if (idx === cornerIdx) break;
+    idx = dir > 0 ? (idx + 1) % n : (idx - 1 + n) % n;
+  }
+
+  // Close the polygon: A (refX, waterElev) → B (bestX, waterElev) → concrete path → back to A
+  // Also include the base corner at base elevation if corner isn't exactly at base
+  const baseCorner = { x: cornerNode.x, y: base };
+  const otherBaseCorner = { x: refX, y: base };
+
+  const poly = [ptA, ptB, ...pathNodes];
+  // Close along the base back to ptA's x
+  if (Math.abs(pathNodes[pathNodes.length - 1].y - base) < tol) {
+    poly.push(otherBaseCorner);
+  }
+
+  if (poly.length < 3) return null;
+
+  const cent = polygonCentroid(poly);
+  if (!cent || cent.area < 0.001) return null;
+
+  const F = cent.area * gw / 1000; // kips/ft
+  const armFromToe = toe - cent.x;
+  return {
+    F, arm: armFromToe, moment: F * armFromToe,
+    centroid: { x: cent.x, y: cent.y },
+    polygon: poly, area: cent.area,
+    overtopping: false
+  };
+}
+
 // === FORCE CALCULATION ===
 function calcLoads(pts, p, caseKey) {
   const lc = LOAD_CASES[caseKey];
@@ -1396,42 +1513,47 @@ function calcLoads(pts, p, caseKey) {
     });
   }
 
-  // 1c. Vertical water weight on horizontal upstream landings.
-  // Each near-horizontal upward-facing edge below HW carries a rectangular water column.
-  // Also save per-segment data for diagram rendering.
-  const landingSegs = []; // [{x1, x2, y, depth}] for drawing
-  if (hd > 0) {
-    let Vwater = 0, Mwater = 0;
-    for (let i = 0; i < pts.length; i++) {
-      const a = pts[i], b = pts[(i + 1) % pts.length];
-      const dx = b.x - a.x, dy = b.y - a.y;
-      const ymid = (a.y + b.y) / 2, xmid = (a.x + b.x) / 2;
-      const isNearHoriz = Math.abs(dy) < Math.abs(dx) * 0.30; // shallow ⇒ landing
-      const belowHW = ymid < hw;
-      const notBase  = ymid > base + 0.5; // exclude the actual base edge
-      // Upward-facing surface: outward normal y-component > 0 (water above, concrete below)
-      const ny_edge = wsign * (-dx) / (Math.hypot(dx, dy) + 1e-9);
-      const isUpwardFacing = ny_edge > 0.5;
-      // Must be upstream of or at the dam crest
-      const isUpstreamOfCrest = xmid <= x_crest + 0.5;
-      if (isNearHoriz && belowHW && notBase && isUpwardFacing && isUpstreamOfCrest && Math.abs(dx) > 1e-6) {
-        const depth = hw - ymid;
-        const dV = gw * depth * Math.abs(dx) / 1000;
-        const arm = toe - xmid;
-        Vwater += dV;
-        Mwater += dV * arm;
-        landingSegs.push({ x1: Math.min(a.x, b.x), x2: Math.max(a.x, b.x), y: ymid, depth });
+  // 1c. Vertical water weight — upstream and downstream wedge geometry.
+  const landingSegs = []; // kept for compatibility but unused
+  let upstreamWedge = null, downstreamWedge = null;
+  let isOvertopping = false;
+
+  if (hd > 0 && p.inclUpstreamWater !== false) {
+    const result = computeWaterWedge(pts, heel, toe, hw, base, gw, true);
+    if (result) {
+      if (result.overtopping) {
+        isOvertopping = true;
+      } else {
+        upstreamWedge = result;
+        vForces.push({
+          label: 'Upstream Water Weight (↓)',
+          F: result.F,
+          arm: result.arm,
+          moment: result.moment,
+          note: `Area=${result.area.toFixed(2)} ft², centroid x=${result.centroid.x.toFixed(2)} ft`
+        });
       }
     }
-    if (Vwater > 0.001) {
+  }
+
+  if (td > 0 && p.inclDownstreamWater !== false) {
+    const result = computeWaterWedge(pts, heel, toe, tw, base, gw, false);
+    if (result && !result.overtopping) {
+      downstreamWedge = result;
       vForces.push({
-        label: 'Water on Upstream Landing',
-        F: Vwater,
-        arm: Vwater > 0 ? Mwater / Vwater : 0,
-        moment: Mwater,
-        note: `water column on ${landingSegs.length} landing(s)`
+        label: 'Downstream Water Weight (↓)',
+        F: result.F,
+        arm: result.arm,
+        moment: result.moment,
+        note: `Area=${result.area.toFixed(2)} ft², centroid x=${result.centroid.x.toFixed(2)} ft`
       });
     }
+  }
+
+  // Detect overtopping from downstream side too
+  if (!isOvertopping && td > 0) {
+    const result = computeWaterWedge(pts, heel, toe, tw, base, gw, false);
+    if (result && result.overtopping) isOvertopping = true;
   }
 
   // 2. Uplift
@@ -1486,9 +1608,6 @@ function calcLoads(pts, p, caseKey) {
       vForces.push({ label: 'Upstream Silt (vert)', F: Fv_silt, arm: B, moment: Fv_silt * B, note: '' });
     }
   }
-
-  // 3b. (removed — inclined face water wedge consolidated into section 1c horizontal landings)
-  let upstreamWedgeData = null;
 
   // 4. Headwater horizontal
   if (hd > 0) {
@@ -1599,7 +1718,7 @@ function calcLoads(pts, p, caseKey) {
     upliftPressures.pD = (pT + (1 - p.drainEff) * (pH - pT)) * 1000;
     upliftPressures.drainX = heel + p.drainDist;
   }
-  return { vForces, hForces, sumV, sumH, sumMV, sumMH, B, heel, toe, hd, td, W, cx, cy, area, upliftPressures, upstreamWedgeData, landingSegs };
+  return { vForces, hForces, sumV, sumH, sumMV, sumMH, B, heel, toe, hd, td, W, cx, cy, area, upliftPressures, upstreamWedge, downstreamWedge, isOvertopping, landingSegs };
 }
 
 // === STABILITY CHECKS ===
@@ -1881,38 +2000,59 @@ function drawLoadDiagram(res) {
     ctx.textAlign = 'left';
   }
 
-  // === UPSTREAM HORIZONTAL LANDINGS — vertical water weight ===
-  // For each horizontal ledge below HW, draw a filled rectangle (water column above it)
-  // and a downward arrow for the resultant force.
-  if (loads.landingSegs && loads.landingSegs.length > 0 && hd > 0) {
-    loads.landingSegs.forEach(seg => {
-      const x1c = px(seg.x1), x2c = px(seg.x2);
-      const ledgeY = py(seg.y);            // canvas y of the ledge surface
-      const hwY   = py(seg.y + seg.depth); // canvas y of water surface above it
-      const w = Math.abs(x2c - x1c);
-      const h = Math.abs(ledgeY - hwY);
-      const xLeft = Math.min(x1c, x2c);
+  // === UPSTREAM WATER WEDGE — vertical downward force ===
+  function drawWaterWedge(wedge, label, color, fillColor) {
+    if (!wedge || !wedge.polygon || wedge.polygon.length < 3) return;
+    // Draw filled polygon
+    ctx.beginPath();
+    ctx.moveTo(px(wedge.polygon[0].x), py(wedge.polygon[0].y));
+    for (let i = 1; i < wedge.polygon.length; i++) {
+      ctx.lineTo(px(wedge.polygon[i].x), py(wedge.polygon[i].y));
+    }
+    ctx.closePath();
+    ctx.fillStyle = fillColor;
+    ctx.fill();
+    ctx.strokeStyle = color; ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 3]);
+    ctx.stroke();
+    ctx.setLineDash([]);
 
-      // Filled rectangle = water above ledge
-      ctx.fillStyle = 'rgba(26,108,199,0.20)';
-      ctx.fillRect(xLeft, hwY, w, h);
-      ctx.setLineDash([3, 3]);
-      ctx.strokeStyle = '#1a6cc7'; ctx.lineWidth = 1.2;
-      ctx.strokeRect(xLeft, hwY, w, h);
-      ctx.setLineDash([]);
+    // Downward arrow at centroid x
+    const cx = px(wedge.centroid.x);
+    const topY = py(wedge.centroid.y) - 6;
+    const botY = Math.min(topY + 50, py(p.baseElev) - 4);
+    ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 2.5;
+    arrow(ctx, cx, topY, cx, botY, 8);
+    ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center';
+    ctx.fillStyle = color;
+    ctx.fillText(label + ' = ' + wedge.F.toFixed(2) + ' k/ft', cx, topY - 6);
+    ctx.textAlign = 'left';
+  }
 
-      // Downward force arrow at midpoint
-      const xMid = xLeft + w / 2;
-      const arrowLen = Math.max(h * 0.6, 14);
-      ctx.strokeStyle = '#1a4a9a'; ctx.fillStyle = '#1a4a9a'; ctx.lineWidth = 2;
-      arrow(ctx, xMid, hwY + 4, xMid, hwY + 4 + arrowLen, 6);
+  if (loads.upstreamWedge) {
+    drawWaterWedge(loads.upstreamWedge, 'WU', '#1a5a9a', 'rgba(26,90,154,0.18)');
+  }
+  if (loads.downstreamWedge) {
+    drawWaterWedge(loads.downstreamWedge, 'WD', '#2a7a3a', 'rgba(42,122,58,0.18)');
+  }
 
-      // Force label
-      const dV = p.waterUW * seg.depth * (seg.x2 - seg.x1) / 1000;
-      ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
-      ctx.fillText('↓' + dV.toFixed(2) + ' k/ft', xMid, hwY - 3);
-      ctx.textAlign = 'left';
-    });
+  // === OVERTOPPING NAPPE INDICATOR ===
+  if (loads.isOvertopping && p.inclOvertopping !== false) {
+    const heelX = px(heel), toeX = px(toe);
+    const hwY = py(p.baseElev + hd);
+    const twY = py(p.baseElev + (loads.td || 0));
+    // Draw a cubic bezier nappe curve from HW to TW
+    ctx.beginPath();
+    ctx.moveTo(heelX, hwY);
+    ctx.bezierCurveTo(heelX, hwY + 30, toeX, twY - 30, toeX, twY);
+    ctx.strokeStyle = '#0077cc'; ctx.lineWidth = 2.5;
+    ctx.setLineDash([6, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.font = 'bold 10px monospace'; ctx.fillStyle = '#0055aa';
+    ctx.textAlign = 'center';
+    ctx.fillText('OVERTOPPING', (heelX + toeX) / 2, hwY - 8);
+    ctx.textAlign = 'left';
   }
 
   // === HW pressure triangle (extends LEFT from heel) ===
