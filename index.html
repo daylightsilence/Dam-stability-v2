@@ -1899,11 +1899,12 @@ function checkStability(loads, p, caseKey) {
   const MV_net = sumMV; // from vForces (moments about toe)
   const MH_net = sumMH; // from hForces (overturning)
 
-  // Mr = stabilizing vertical moments (positive)
-  const Mr = loads.vForces.filter(f => f.moment > 0).reduce((s, f) => s + f.moment, 0);
-  // Mo_v = destabilizing vertical moments
+  // Mr = stabilizing moments: positive vertical + stabilizing horizontal (e.g. TW opposing overturning)
+  const Mr_v = loads.vForces.filter(f => f.moment > 0).reduce((s, f) => s + f.moment, 0);
+  const Mr_h = Math.abs(loads.hForces.filter(f => f.moment < 0).reduce((s, f) => s + f.moment, 0));
+  const Mr = Mr_v + Mr_h;
+  // Mo = destabilizing moments: negative vertical (uplift) + overturning horizontal (HW, seismic, ice)
   const Mo_v = Math.abs(loads.vForces.filter(f => f.moment < 0).reduce((s, f) => s + f.moment, 0));
-  // Mo_h = overturning from horizontal forces
   const Mo_h = Math.abs(loads.hForces.filter(f => f.moment > 0).reduce((s, f) => s + f.moment, 0));
   const Mo = Mo_v + Mo_h;
   const FS_OT = Mo > 1e-6 ? Mr / Mo : Infinity;
@@ -2907,9 +2908,9 @@ function generateReport() {
   updateGeoFig();
   const geoFigImg = document.getElementById('geoFigCanvas').toDataURL();
 
-  // Capture load diagrams for all 4 cases
+  // Capture load diagrams for selected cases only
   const loadImgs = {};
-  ['usual','flood','seismic','extreme'].forEach(key => {
+  caseKeys.forEach(key => {
     if (state.results[key]) {
       drawLoadDiagram(state.results[key]);
       loadImgs[key] = document.getElementById('loadCanvas').toDataURL();
@@ -2918,6 +2919,38 @@ function generateReport() {
   // Restore active case
   const activeRes = state.results[state.activeResultTab] || state.results['usual'];
   if (activeRes) drawLoadDiagram(activeRes);
+
+  // Build per-case load tables (ΣV and ΣH)
+  let loadTablesHtml = '';
+  caseKeys.forEach(key => {
+    const res = state.results[key];
+    if (!res) return;
+    const { loads } = res;
+    const vRowsRpt = loads.vForces.map(f =>
+      `<tr><td>${f.label}</td><td style="font-family:monospace;text-align:right">${f.F >= 0 ? '+' : ''}${f.F.toFixed(2)}</td><td style="font-family:monospace;text-align:right">${f.arm.toFixed(2)}</td><td style="font-family:monospace;text-align:right">${f.moment.toFixed(2)}</td></tr>`
+    ).join('');
+    const hRowsRpt = loads.hForces.map(f =>
+      `<tr><td>${f.label}</td><td style="font-family:monospace;text-align:right">${f.F >= 0 ? '+' : ''}${f.F.toFixed(2)}</td><td style="font-family:monospace;text-align:right">${f.arm.toFixed(2)}</td><td style="font-family:monospace;text-align:right">${f.moment.toFixed(2)}</td></tr>`
+    ).join('');
+    loadTablesHtml += `
+<div class="section" style="page-break-inside:avoid;margin-bottom:18pt">
+  <h3>${LOAD_CASES[key].label} — Force Tables (moments about toe, rotation point at toe)</h3>
+  <p style="font-size:10pt;margin-bottom:6pt"><strong>Vertical Forces</strong> (k/ft and k·ft/ft)</p>
+  <table style="font-size:9pt">
+    <thead><tr><th>Load</th><th style="text-align:right">Force (k/ft)</th><th style="text-align:right">Arm from Toe (ft)</th><th style="text-align:right">Moment (k·ft/ft)</th></tr></thead>
+    <tbody>${vRowsRpt}
+      <tr style="font-weight:700;background:#e8f0e8"><td>ΣV</td><td style="font-family:monospace;text-align:right">${loads.sumV.toFixed(2)}</td><td style="text-align:right">—</td><td style="font-family:monospace;text-align:right">${loads.sumMV.toFixed(2)}</td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:10pt;margin:8pt 0 6pt"><strong>Horizontal Forces</strong> (k/ft and k·ft/ft, + = overturning toward toe)</p>
+  <table style="font-size:9pt">
+    <thead><tr><th>Load</th><th style="text-align:right">Force (k/ft)</th><th style="text-align:right">Arm from Base (ft)</th><th style="text-align:right">Moment (k·ft/ft)</th></tr></thead>
+    <tbody>${hRowsRpt}
+      <tr style="font-weight:700;background:#e8f0e8"><td>ΣH</td><td style="font-family:monospace;text-align:right">${loads.sumH.toFixed(2)}</td><td style="text-align:right">—</td><td style="font-family:monospace;text-align:right">${loads.sumMH.toFixed(2)}</td></tr>
+    </tbody>
+  </table>
+</div>`;
+  });
 
   let resultRows = '';
   caseKeys.forEach(key => {
@@ -3030,7 +3063,10 @@ ${['usual','flood','seismic','extreme'].filter(k => loadImgs[k]).map(k => `
   <img src="${loadImgs[k]}" alt="Load Diagram — ${LOAD_CASES[k].label}" style="max-width:100%;border:1px solid #ddd;border-radius:4px">
 </div>`).join('')}
 
-<h2>4. Stability Results Summary</h2>
+<h2>4. Load Calculations</h2>
+<div class="section">${loadTablesHtml}</div>
+
+<h2>5. Stability Results Summary</h2>
 <div class="section">
   <table>
     <thead><tr>
@@ -3045,7 +3081,7 @@ ${['usual','flood','seismic','extreme'].filter(k => loadImgs[k]).map(k => `
   </p>
 </div>
 
-<h2>5. Conclusion</h2>
+<h2>6. Conclusion</h2>
 <div class="section">
   <p>This preliminary stability analysis was performed for a concrete gravity dam section per ${p.designCode.toUpperCase()}. The geometry was defined by ${state.realNodes.length} nodes with a base width of ${state.results['usual']?.loads.B.toFixed(1) || '—'} ft.</p>
   <p>Under the four standard load cases (Usual, Flood, Seismic, Extreme), the dam section ${allPass ? 'meets all required stability criteria' : 'does not meet all required stability criteria and requires design revision'}.</p>
