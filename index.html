@@ -2081,16 +2081,14 @@ function drawLoadDiagram(res) {
   const pressScale = hwIntensity > 0 ? (B * s * 0.42) / hwIntensity : 40; // px per ksf
 
   // === UPLIFT pressure diagram (trapezoid below base line) ===
-  // Use hwIntensity / twIntensity directly — same source as the HW/TW triangles —
-  // so the heel depth exactly equals the HW triangle base width and the toe depth
-  // exactly equals the TW triangle base width.
+  // upliftPressures.pH is already reduced by cutoff wall efficiency.
   {
     const { pH, pT, pD, drainX } = loads.upliftPressures || {};
     if (pH !== undefined) {
       const heelPx = px(heel), toePx = px(toe);
       const twIntensityLocal = (p.waterUW || 62.4) * td / 1000; // ksf at toe
-      const upliftH = hwIntensity  * pressScale;   // pixel depth at heel — matches HW triangle base width
-      const upliftT = twIntensityLocal * pressScale; // pixel depth at toe  — matches TW triangle base width
+      const upliftH = (pH / 1000) * pressScale;   // pixel depth at heel — uses reduced pH
+      const upliftT = twIntensityLocal * pressScale; // pixel depth at toe
       const baseY   = py(p.baseElev);
 
       const drawUpliftTrap = (x1, y1, x2, y2, alpha) => {
@@ -2124,9 +2122,9 @@ function drawLoadDiagram(res) {
         drawUpliftTrap(heelPx, upliftH, toePx, upliftT, 0.25);
       }
 
-      // Pressure labels at heel and toe (use same intensities as the triangles)
+      // Pressure labels at heel and toe
       ctx.fillStyle = '#c0392b'; ctx.font = '9px monospace'; ctx.textAlign = 'center';
-      ctx.fillText(hwIntensity.toFixed(2)+' ksf', heelPx, baseY + upliftH + 13);
+      if (upliftH > 4) ctx.fillText((pH/1000).toFixed(2)+' ksf', heelPx, baseY + upliftH + 13);
       if (upliftT > 4) ctx.fillText(twIntensityLocal.toFixed(2)+' ksf', toePx, baseY + upliftT + 13);
 
       // Upward arrows sized to local pressure depth
@@ -2158,8 +2156,7 @@ function drawLoadDiagram(res) {
         ctx.fillStyle = '#c0392b'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
         ctx.fillText('U = ' + Math.abs(upliftF.F).toFixed(2) + ' k/ft', midX, baseY + midDepth * 0.5 + 28);
         // Area and centroid annotation for uplift trapezoid
-        const upliftArea = 0.5 * (hwIntensity + (loads.upliftPressures && loads.upliftPressures.pT !== undefined ? loads.upliftPressures.pT / 1000 : (p.waterUW || 62.4) * td / 1000)) * B; // k/ft
-        const centFromHeel = upliftF.x !== undefined ? (upliftF.x - heel).toFixed(1) : (B / 2).toFixed(1);
+        const centFromHeel = upliftF.arm !== undefined ? (B - upliftF.arm).toFixed(1) : (B / 2).toFixed(1);
         ctx.font = '8px monospace'; ctx.fillStyle = '#c0392b';
         ctx.fillText('A=' + Math.abs(upliftF.F).toFixed(2) + ' k/ft  x̄=' + centFromHeel + ' ft', midX, baseY + midDepth * 0.5 + 42);
       }
