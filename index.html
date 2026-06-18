@@ -330,6 +330,17 @@ canvas{display:block;border:1px solid #e0e0e0;border-radius:8px;background:#fff}
   </div>
 
   <div class="card">
+    <div class="card-title">Cutoff Wall (Upstream)</div>
+    <div class="f3">
+      <div style="display:flex;align-items:flex-end;padding-bottom:4px">
+        <label class="check-label"><input type="checkbox" id="hasCutoff" onchange="onInputChange()"> Cutoff wall at heel</label>
+      </div>
+      <div><label>Cutoff Efficiency (0–1)</label><input type="number" id="cutoffEff" value="0.50" step="0.01" min="0" max="1" oninput="onInputChange()"></div>
+    </div>
+    <div class="note">Reduces uplift at heel: 0 = no reduction (pH = headwater), 1 = full cutoff (pH = 0). Bilinear with drain if both present.</div>
+  </div>
+
+  <div class="card">
     <div class="card-title">Silt / Soil Loads</div>
     <div style="margin-bottom:10px">
       <label class="check-label"><input type="checkbox" id="hasUpstreamSilt" onchange="toggleSiltUI()"> Upstream Silt</label>
@@ -1254,6 +1265,8 @@ function getParams() {
     hasDrain: gb('hasDrain'),
     drainDist: gv('drainDist'),
     drainEff: gv('drainEff') || 0.67,
+    hasCutoff: gb('hasCutoff'),
+    cutoffEff: gv('cutoffEff') ?? 0.50,
     hasUpstreamSilt: gb('hasUpstreamSilt'),
     siltUpElev: gv('siltUpElev'),
     siltUpUW: gv('siltUpUW') || 55,
@@ -1673,7 +1686,8 @@ function calcLoads(pts, p, caseKey) {
   }
 
   // 2. Uplift
-  const pH = gw * hd / 1000; // ksf at heel
+  const pH_full = gw * hd / 1000; // ksf at heel without cutoff
+  const pH = p.hasCutoff ? pH_full * (1 - p.cutoffEff) : pH_full; // reduced by cutoff wall
   const pT = gw * td / 1000; // ksf at toe
   let upliftForce = 0, upliftMoment = 0;
 
@@ -1870,7 +1884,7 @@ function calcLoads(pts, p, caseKey) {
   const sumMH = hForces.reduce((s, f) => s + f.moment, 0); // overturning moments
 
   // Store uplift pressure intensities (psf) for drawing the trapezoidal diagram
-  const upliftPressures = { pH: pH * 1000, pT: pT * 1000 };
+  const upliftPressures = { pH: pH * 1000, pH_full: pH_full * 1000, pT: pT * 1000, hasCutoff: p.hasCutoff && p.cutoffEff > 0 };
   if (p.hasDrain && p.drainDist > 0 && p.drainDist < B) {
     const _pLinear = pH - (pH - pT) * (p.drainDist / B);
     upliftPressures.pD = (_pLinear - p.drainEff * (_pLinear - pT)) * 1000;
@@ -2574,6 +2588,33 @@ function drawLoadDiagram(res) {
   ctx.fillText('B = ' + B.toFixed(2) + ' ft', px((heel + toe) / 2), py(p.baseElev) + 28);
   ctx.textAlign = 'left';
 
+  // === CUTOFF WALL symbol at heel ===
+  if (p.hasCutoff && loads.upliftPressures.hasCutoff) {
+    const heelX = px(heel);
+    const baseY = py(p.baseElev);
+    const cwDepth = Math.min(s * 8, 40); // visual depth below base
+    // Draw thick wall line below base at heel
+    ctx.strokeStyle = '#5a2d00'; ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(heelX, baseY);
+    ctx.lineTo(heelX, baseY + cwDepth);
+    ctx.stroke();
+    // Hatch marks on cutoff wall
+    ctx.lineWidth = 1.5;
+    for (let i = 0; i <= 3; i++) {
+      const y = baseY + cwDepth * i / 3;
+      ctx.beginPath();
+      ctx.moveTo(heelX, y);
+      ctx.lineTo(heelX - 7, y + 6);
+      ctx.stroke();
+    }
+    // Reduced pH label on uplift diagram
+    const upliftH_eff = (loads.upliftPressures.pH / 1000) * (hwIntensity > 0 ? (B * s * 0.42) / hwIntensity : 40);
+    ctx.fillStyle = '#5a2d00'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'left';
+    ctx.fillText('Cutoff E=' + (p.cutoffEff * 100).toFixed(0) + '%', heelX + 4, baseY + cwDepth + 12);
+    ctx.textAlign = 'left';
+  }
+
   // === SCALE LEGEND (#13) ===
   drawScaleLegend(ctx, W, H, s);
 }
@@ -3050,6 +3091,8 @@ img{max-width:100%;border:1pt solid #ccc;border-radius:4pt;margin:8pt 0}
       <tr><td>Drain Present</td><td>${p.hasDrain ? 'Yes' : 'No'}</td><td></td></tr>
       <tr><td>Drain Distance from Heel</td><td>${p.drainDist}</td><td>ft</td></tr>
       <tr><td>Drain Efficiency</td><td>${p.drainEff}</td><td>—</td></tr>
+      <tr><td>Cutoff Wall (Upstream)</td><td>${p.hasCutoff ? 'Yes' : 'No'}</td><td></td></tr>
+      <tr><td>Cutoff Efficiency</td><td>${p.hasCutoff ? p.cutoffEff : '—'}</td><td>—</td></tr>
       <tr><td>Seismic Coeff k&#x2095;</td><td>${p.kh}</td><td>—</td></tr>
       <tr><td>Design Code</td><td>${p.designCode.toUpperCase()}</td><td></td></tr>
     </tbody>
@@ -3123,7 +3166,7 @@ function syncProjTitle() {
 const SAVED_INPUT_IDS = [
   'hwNormal','hwFlood','crestElev','twNormal','twFlood','baseElev',
   'concUW','waterUW','phi','cohesion','useCohesion','foundationType',
-  'hasDrain','drainDist','drainEff','hasUpstreamSilt','siltUpElev','siltUpUW','siltUpPhi',
+  'hasDrain','drainDist','drainEff','hasCutoff','cutoffEff','hasUpstreamSilt','siltUpElev','siltUpUW','siltUpPhi',
   'hasDownstreamSoil','siltDnElev','siltDnUW','siltDnPhi','kh','kv','useWestergaard',
   'hasIce','iceLoad','iceElev','overrideConc','manWeight','manCgX','manCgY',
   'projName','engName','reportDate','projNum','reportNotes','scaleVal','unitSel','geoBaseElev'
